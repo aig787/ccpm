@@ -1,6 +1,6 @@
 //! Integration tests for .gitignore management functionality
 //!
-//! These tests verify that CCPM correctly manages .claude/.gitignore files
+//! These tests verify that CCPM correctly manages .gitignore files
 //! based on the target.gitignore configuration setting.
 
 use anyhow::Result;
@@ -142,7 +142,7 @@ fn test_gitignore_enabled_by_default() {
         .assert();
 
     // Check that .gitignore was created
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     assert!(
         gitignore_path.exists(),
         "Gitignore should be created by default"
@@ -182,12 +182,12 @@ fn test_gitignore_explicitly_enabled() {
         .assert();
 
     // Check that .gitignore was created
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     assert!(gitignore_path.exists(), "Gitignore should be created");
 
     // Verify content structure
     let content = fs::read_to_string(&gitignore_path).unwrap();
-    assert!(content.contains("CCPM managed file"));
+    assert!(content.contains("CCPM managed entries"));
     assert!(content.contains("CCPM managed entries - do not edit below this line"));
     assert!(content.contains("# End of CCPM managed entries"));
 }
@@ -220,7 +220,7 @@ fn test_gitignore_disabled() {
         .assert();
 
     // Check that .gitignore was NOT created
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     assert!(
         !gitignore_path.exists(),
         "Gitignore should not be created when disabled"
@@ -241,14 +241,14 @@ fn test_gitignore_preserves_user_entries() {
     fs::create_dir_all(project_dir.join(".claude")).unwrap();
 
     // Create existing gitignore with user entries
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     let user_content = r#"# User's custom comment
 *.backup
 user-file.txt
 temp/
 
 # CCPM managed entries - do not edit below this line
-/old/file.md
+.claude/agents/old-agent.md
 # End of CCPM managed entries
 "#;
     fs::write(&gitignore_path, user_content).unwrap();
@@ -280,7 +280,77 @@ temp/
     // Check that CCPM section exists (entries will be based on what was actually installed)
     assert!(updated_content.contains("CCPM managed entries"));
     assert!(updated_content.contains("# End of CCPM managed entries"));
-    assert!(updated_content.contains("/ccpm/snippets/test-snippet.md"));
+    assert!(updated_content.contains(".claude/ccpm/snippets/test-snippet.md"));
+}
+
+#[test]
+fn test_gitignore_preserves_content_after_ccpm_section() {
+    ccpm::test_utils::init_test_logging();
+    let temp = TempDir::new().unwrap();
+    let project_dir = temp.path();
+    let source_dir = temp.path().join("source");
+
+    // Create source files
+    create_test_source_files(&source_dir).unwrap();
+
+    // Create .claude directory
+    fs::create_dir_all(project_dir.join(".claude")).unwrap();
+
+    // Create existing gitignore with content after CCPM section
+    let gitignore_path = project_dir.join(".gitignore");
+    let user_content = r#"# Project gitignore
+*.backup
+temp/
+
+# CCPM managed entries - do not edit below this line
+.claude/agents/old-agent.md
+# End of CCPM managed entries
+
+# Additional entries after CCPM section
+local-config.json
+debug/
+# End comment
+"#;
+    fs::write(&gitignore_path, user_content).unwrap();
+
+    // Create manifest with gitignore enabled
+    let manifest_path = project_dir.join("ccpm.toml");
+    fs::write(&manifest_path, create_test_manifest(true, &source_dir)).unwrap();
+
+    // Create lockfile
+    let lockfile_path = project_dir.join("ccpm.lock");
+    fs::write(&lockfile_path, create_test_lockfile()).unwrap();
+
+    // Run install command
+    Command::cargo_bin("ccpm")
+        .unwrap()
+        .arg("install")
+        .arg("--force")
+        .arg("--quiet")
+        .current_dir(project_dir)
+        .assert();
+
+    // Check that all sections are preserved
+    let updated_content = fs::read_to_string(&gitignore_path).unwrap();
+
+    // Check content before CCPM section
+    assert!(updated_content.contains("# Project gitignore"));
+    assert!(updated_content.contains("*.backup"));
+    assert!(updated_content.contains("temp/"));
+
+    // Check CCPM section is updated
+    assert!(updated_content.contains("CCPM managed entries"));
+    assert!(updated_content.contains("# End of CCPM managed entries"));
+    assert!(updated_content.contains(".claude/ccpm/snippets/test-snippet.md"));
+
+    // Check content after CCPM section is preserved
+    assert!(updated_content.contains("# Additional entries after CCPM section"));
+    assert!(updated_content.contains("local-config.json"));
+    assert!(updated_content.contains("debug/"));
+    assert!(updated_content.contains("# End comment"));
+
+    // Verify old CCPM entry is removed
+    assert!(!updated_content.contains(".claude/agents/old-agent.md"));
 }
 
 #[test]
@@ -310,7 +380,7 @@ fn test_gitignore_update_command() {
         .assert();
 
     // Check that .gitignore exists after update
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     if gitignore_path.exists() {
         let content = fs::read_to_string(&gitignore_path).unwrap();
         assert!(content.contains("CCPM managed entries"));
@@ -393,7 +463,7 @@ installed_at = ".claude/agents/internal.md"
         .assert();
 
     // Check gitignore content
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     if gitignore_path.exists() {
         let content = fs::read_to_string(&gitignore_path).unwrap();
         // External path should use ../
@@ -403,7 +473,7 @@ installed_at = ".claude/agents/internal.md"
         );
         // Internal path should use /
         assert!(
-            content.contains("/agents/internal.md"),
+            content.contains(".claude/agents/internal.md"),
             "Internal paths should use / prefix"
         );
     }
@@ -437,7 +507,7 @@ fn test_gitignore_empty_lockfile() {
         .assert();
 
     // Check that .gitignore is created even with no resources
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     assert!(
         gitignore_path.exists(),
         "Gitignore should be created even with empty lockfile"
@@ -476,7 +546,7 @@ fn test_gitignore_idempotent() {
         .assert();
 
     // Get content after first run
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     let first_content = if gitignore_path.exists() {
         fs::read_to_string(&gitignore_path).unwrap()
     } else {
@@ -532,7 +602,7 @@ fn test_gitignore_switch_enabled_disabled() {
         .current_dir(project_dir)
         .assert();
 
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     assert!(gitignore_path.exists(), "Gitignore should be created");
 
     // Now disable gitignore
@@ -663,7 +733,7 @@ fn test_gitignore_actually_ignored_by_git() {
 
     // Verify that the gitignore file itself IS staged
     assert!(
-        status.contains(".claude/.gitignore"),
+        status.contains(".gitignore"),
         "Gitignore file should be tracked by git\nGit status:\n{}",
         status
     );
@@ -828,7 +898,7 @@ fn test_gitignore_malformed_existing() {
     fs::create_dir_all(project_dir.join(".claude")).unwrap();
 
     // Create malformed gitignore (missing end marker)
-    let gitignore_path = project_dir.join(".claude/.gitignore");
+    let gitignore_path = project_dir.join(".gitignore");
     let malformed_content = r#"# Some content
 user-file.txt
 

@@ -463,7 +463,7 @@ impl UpdateCommand {
                             println!("✅ Updated {install_count} resources");
                         }
 
-                        // Update .claude/.gitignore if enabled
+                        // Update .gitignore if enabled
                         let gitignore_enabled = manifest.target.gitignore;
 
                         update_gitignore(&new_lockfile, project_dir, gitignore_enabled)?;

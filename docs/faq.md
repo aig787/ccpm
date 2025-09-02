@@ -170,7 +170,7 @@ Don't commit:
 - `~/.ccpm/config.toml` (contains secrets)
 
 ### Why are my installed files gitignored?
-By default, CCPM creates `.claude/.gitignore` to prevent installed dependencies from being committed. This follows the pattern of other package managers where you commit the manifest but not the installed packages.
+By default, CCPM creates `.gitignore` entries to prevent installed dependencies from being committed. This follows the pattern of other package managers where you commit the manifest but not the installed packages.
 
 ### Can I commit installed resources to Git?
 Yes, set `gitignore = false` in ccpm.toml:
@@ -180,7 +180,7 @@ gitignore = false  # Don't create .gitignore
 ```
 
 ### How does CCPM handle the .gitignore file?
-CCPM manages a section in `.claude/.gitignore` marked with "CCPM managed entries". It preserves any user entries outside this section while updating its own entries based on installed resources.
+CCPM manages a section in `.gitignore` marked with "CCPM managed entries". It preserves any user entries outside this section while updating its own entries based on installed resources.
 
 ## Team Collaboration
 

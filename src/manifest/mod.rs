@@ -658,9 +658,9 @@ pub struct TargetConfig {
     #[serde(default = "default_hooks_dir")]
     pub hooks: String,
 
-    /// Whether to automatically add installed files to `.claude/.gitignore`.
+    /// Whether to automatically add installed files to `.gitignore`.
     ///
-    /// When enabled (default), CCPM will create or update `.claude/.gitignore`
+    /// When enabled (default), CCPM will create or update `.gitignore`
     /// to exclude all installed files from version control. This prevents
     /// installed dependencies from being committed to your repository.
     ///

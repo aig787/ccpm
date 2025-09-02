@@ -562,7 +562,7 @@ impl InstallCommand {
             lockfile.save(&lockfile_path)?;
         }
 
-        // Update .claude/.gitignore if enabled
+        // Update .gitignore if enabled
         let gitignore_enabled = manifest.target.gitignore;
 
         update_gitignore(&lockfile, project_dir, gitignore_enabled)?;

@@ -201,7 +201,7 @@ impl InitCommand {
         fs::write(&manifest_path, template)?;
 
         // Update or create .gitignore with CCPM entries
-        let gitignore_entries = vec![".claude/ccpm/", ".claude/.gitignore"];
+        let gitignore_entries = vec![".claude/ccpm/"];
 
         let mut gitignore_content = if gitignore_path.exists() {
             fs::read_to_string(&gitignore_path)?
@@ -433,7 +433,6 @@ mod tests {
         let content = fs::read_to_string(&gitignore_path).unwrap();
         assert!(content.contains("# CCPM managed directories"));
         assert!(content.contains(".claude/ccpm/"));
-        assert!(content.contains(".claude/.gitignore"));
     }
 
     #[tokio::test]
@@ -459,7 +458,6 @@ mod tests {
         // Should add CCPM entries
         assert!(content.contains("# CCPM managed directories"));
         assert!(content.contains(".claude/ccpm/"));
-        assert!(content.contains(".claude/.gitignore"));
     }
 
     #[tokio::test]
@@ -491,10 +489,6 @@ mod tests {
         assert_eq!(
             first_content.matches("# CCPM managed directories").count(),
             second_content.matches("# CCPM managed directories").count()
-        );
-        assert_eq!(
-            first_content.matches(".claude/.gitignore").count(),
-            second_content.matches(".claude/.gitignore").count()
         );
     }
 }

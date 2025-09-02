@@ -227,7 +227,7 @@ snippets = "resources/snippets"
 
 ## Version Control Strategy
 
-By default, CCPM creates `.claude/.gitignore` to exclude installed files from Git:
+By default, CCPM creates `.gitignore` entries to exclude installed files from Git:
 
 - The `ccpm.toml` manifest and `ccpm.lock` lockfile are committed
 - Installed resource files are automatically gitignored
