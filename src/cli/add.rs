@@ -15,7 +15,7 @@ use crate::manifest::{
 };
 use crate::models::{
     AgentDependency, CommandDependency, DependencyType, HookDependency, McpServerDependency,
-    ScriptDependency, SnippetDependency, SourceSpec,
+    ScriptDependency, SkillDependency, SnippetDependency, SourceSpec,
 };
 
 /// Command to add sources and dependencies to a AGPM project.
@@ -62,6 +62,9 @@ enum DependencySubcommand {
 
     /// Add an MCP server dependency
     McpServer(McpServerDependency),
+
+    /// Add a skill dependency
+    Skill(SkillDependency),
 }
 
 impl AddCommand {
@@ -125,6 +128,7 @@ impl AddCommand {
                     DependencySubcommand::Script(script) => DependencyType::Script(script),
                     DependencySubcommand::Hook(hook) => DependencyType::Hook(hook),
                     DependencySubcommand::McpServer(mcp) => DependencyType::McpServer(mcp),
+                    DependencySubcommand::Skill(skill) => DependencyType::Skill(skill),
                 };
                 add_dependency_with_manifest_path(dep_type, manifest_path).await
             }
@@ -232,13 +236,14 @@ async fn add_dependency_with_manifest_path(
         // Add to manifest (MCP servers now use standard ResourceDependency)
         manifest.mcp_servers.insert(name.clone(), dependency.clone());
     } else {
-        // Handle regular resources (agents, snippets, commands, scripts, hooks)
+        // Handle regular resources (agents, snippets, commands, scripts, hooks, skills)
         let section = match &dep_type {
             DependencyType::Agent(_) => &mut manifest.agents,
             DependencyType::Snippet(_) => &mut manifest.snippets,
             DependencyType::Command(_) => &mut manifest.commands,
             DependencyType::Script(_) => &mut manifest.scripts,
             DependencyType::Hook(_) => &mut manifest.hooks,
+            DependencyType::Skill(_) => &mut manifest.skills,
             DependencyType::McpServer(_) => unreachable!(), // Handled above
         };
 

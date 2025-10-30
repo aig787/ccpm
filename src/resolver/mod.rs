@@ -22,6 +22,7 @@ pub mod lockfile_builder;
 pub mod path_resolver;
 pub mod pattern_expander;
 pub mod resource_service;
+pub mod skills;
 pub mod source_context;
 pub mod transitive_resolver;
 pub mod types;
@@ -638,9 +639,24 @@ impl DependencyResolver {
         use crate::resolver::path_resolver as install_path_resolver;
         use crate::utils::normalize_path_for_storage;
 
-        let filename = Self::resolve_filename(dep);
         let artifact_type_string = self.resolve_tool(dep, resource_type);
         let artifact_type = artifact_type_string.as_str();
+
+        let manifest_alias = self.resolve_manifest_alias(name, resource_type);
+
+        // Generate canonical name for local dependencies FIRST
+        // For skills, this extracts the name from SKILL.md frontmatter
+        // For other resources, this normalizes the path
+        let canonical_name =
+            self.compute_local_canonical_name(name, dep, &manifest_alias, resource_type)?;
+
+        // For skills, use the canonical name (from frontmatter) for the installation path
+        // For other resources, use the extracted filename from the path
+        let filename = if resource_type == ResourceType::Skill {
+            canonical_name.clone()
+        } else {
+            Self::resolve_filename(dep)
+        };
 
         let installed_at = install_path_resolver::resolve_install_path(
             self.core.manifest(),
@@ -649,8 +665,6 @@ impl DependencyResolver {
             resource_type,
             &filename,
         )?;
-
-        let manifest_alias = self.resolve_manifest_alias(name, resource_type);
 
         tracing::debug!(
             "Local dependency: name={}, path={}, manifest_alias={:?}",
@@ -666,12 +680,6 @@ impl DependencyResolver {
             manifest_alias.as_deref(),
         );
 
-        // Generate canonical name for local dependencies
-        // For transitive dependencies (manifest_alias=None), use the name as-is since it's
-        // already the correct relative path computed by the transitive resolver
-        // For direct dependencies (manifest_alias=Some), normalize the path
-        let canonical_name = self.compute_local_canonical_name(name, dep, &manifest_alias)?;
-
         let variant_inputs = lockfile_builder::VariantInputs::new(
             lockfile_builder::build_merged_variant_inputs(self.core.manifest(), dep),
         );
@@ -685,6 +693,7 @@ impl DependencyResolver {
             resolved_commit: None,
             checksum: String::new(),
             installed_at,
+            files: None, // Single file resources don't have files list
             dependencies: self.get_dependencies_for(
                 name,
                 None,
@@ -711,11 +720,35 @@ impl DependencyResolver {
         name: &str,
         dep: &ResourceDependency,
         manifest_alias: &Option<String>,
+        resource_type: ResourceType,
     ) -> Result<String> {
         if manifest_alias.is_none() {
             // Transitive dependency - name is already correct (e.g., "../snippets/agents/backend-engineer")
             Ok(name.to_string())
         } else if let Some(manifest_dir) = self.core.manifest().manifest_dir.as_ref() {
+            // For skills, extract the name from SKILL.md frontmatter
+            // This ensures the installed name matches the skill's declared name
+            if resource_type == ResourceType::Skill {
+                let skill_path = if Path::new(dep.get_path()).is_absolute() {
+                    PathBuf::from(dep.get_path())
+                } else {
+                    manifest_dir.join(dep.get_path())
+                };
+
+                // Try to extract skill metadata to get the actual skill name
+                if let Ok((frontmatter, _)) = crate::skills::extract_skill_metadata(&skill_path) {
+                    return Ok(frontmatter.name);
+                }
+
+                // Fallback to basename if extraction fails (e.g., invalid skill structure)
+                let basename = skill_path
+                    .file_name()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid skill path: {}", dep.get_path()))?
+                    .to_string_lossy()
+                    .to_string();
+                return Ok(basename);
+            }
+
             // Direct dependency - normalize path relative to manifest
             let full_path = if Path::new(dep.get_path()).is_absolute() {
                 PathBuf::from(dep.get_path())
@@ -805,6 +838,7 @@ impl DependencyResolver {
             resolved_commit: Some(prepared.resolved_commit.clone()),
             checksum: String::new(),
             installed_at,
+            files: None, // Single file resources don't have files list
             dependencies: self.get_dependencies_for(
                 name,
                 Some(source_name),
@@ -891,6 +925,7 @@ impl DependencyResolver {
                 resolved_commit: None,
                 checksum: String::new(),
                 installed_at,
+                files: None, // Pattern-matched resources are single files
                 dependencies: vec![],
                 resource_type,
                 tool: Some(artifact_type_string.clone()),
@@ -1018,6 +1053,7 @@ impl DependencyResolver {
                 resolved_commit: Some(prepared.resolved_commit.clone()),
                 checksum: String::new(),
                 installed_at,
+                files: None, // Pattern-matched resources are single files
                 dependencies: vec![],
                 resource_type,
                 tool: Some(artifact_type_string.clone()),

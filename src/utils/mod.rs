@@ -354,10 +354,15 @@ pub fn resolve_file_relative_path(
 ) -> anyhow::Result<std::path::PathBuf> {
     use anyhow::{Context, anyhow};
 
-    // Validate it's a file-relative path
-    if !relative_path.starts_with("./") && !relative_path.starts_with("../") {
+    // Validate it's a file-relative path (allow ./, ../, or simple relative paths)
+    // We allow simple relative paths to support skill dependencies like "snippets/utils.md"
+    let is_relative = relative_path.starts_with("./")
+        || relative_path.starts_with("../")
+        || (!relative_path.starts_with('/') && !relative_path.contains(":"));
+
+    if !is_relative {
         return Err(anyhow!(
-            "Transitive dependency path must start with './' or '../': {}",
+            "Transitive dependency path must be relative (not absolute or URL): {}",
             relative_path
         ));
     }
@@ -370,13 +375,12 @@ pub fn resolve_file_relative_path(
     // Resolve relative to parent's directory
     let resolved = parent_dir.join(relative_path);
 
-    // Canonicalize (resolves .. and ., checks existence)
+    // Canonicalize the final path
     resolved.canonicalize().with_context(|| {
         format!(
-            "Transitive dependency does not exist: {} (resolved from '{}' relative to '{}')",
-            resolved.display(),
-            relative_path,
-            parent_dir.display()
+            "Failed to canonicalize resolved path: {} -> {}",
+            parent_file_path.display(),
+            resolved.display()
         )
     })
 }

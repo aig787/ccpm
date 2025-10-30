@@ -234,7 +234,7 @@ agpm list [OPTIONS]
 
 Options:
       --format <FORMAT>       Output format: table, json (default: table)
-      --type <TYPE>           Filter by resource type: agents, snippets, commands, scripts, hooks, mcp-servers
+      --type <TYPE>           Filter by resource type: agents, snippets, commands, scripts, hooks, mcp-servers, skills
       --manifest-path <PATH>  Path to agpm.toml (default: ./agpm.toml)
   -h, --help                  Print help information
 ```
@@ -246,6 +246,9 @@ agpm list
 
 # List only agents
 agpm list --type agents
+
+# List only skills
+agpm list --type skills
 
 # Output as JSON (includes patch field names)
 agpm list --format json
@@ -463,7 +466,7 @@ Options:
 agpm add dep <RESOURCE_TYPE> <SPEC> [OPTIONS]
 
 Arguments:
-  <RESOURCE_TYPE>  Resource type: agent, snippet, command, script, hook, mcp-server
+  <RESOURCE_TYPE>  Resource type: agent, snippet, command, script, hook, mcp-server, skill
   <SPEC>           Dependency specification (see formats below)
 
 Options:
@@ -510,11 +513,13 @@ agpm add dep snippet community:snippets/react.md@feature-branch
 agpm add dep agent ./local-agents/helper.md --name my-helper
 agpm add dep script /usr/local/scripts/build.sh
 agpm add dep hook ../shared/hooks/pre-commit.json
+agpm add dep skill ../my-skills/rust-helper --name rust-helper
 
 # Pattern dependencies (bulk installation)
 agpm add dep agent "community:agents/ai/*.md@v1.0.0" --name ai-agents
 agpm add dep snippet "community:snippets/**/*.md" --name all-snippets
 agpm add dep script "./scripts/*.sh" --name local-scripts
+agpm add dep skill "community:skills/*/*.md@v1.0.0" --name all-skills
 
 # Windows paths
 agpm add dep agent C:\Resources\agents\windows.md
@@ -573,7 +578,7 @@ Options:
 agpm remove dep <RESOURCE_TYPE> <NAME> [OPTIONS]
 
 Arguments:
-  <RESOURCE_TYPE>  Resource type: agent, snippet, command, script, hook, mcp-server
+  <RESOURCE_TYPE>  Resource type: agent, snippet, command, script, hook, mcp-server, skill
   <NAME>           Dependency name to remove
 
 Options:
@@ -591,6 +596,9 @@ agpm remove dep agent old-agent
 
 # Remove a snippet
 agpm remove dep snippet unused-snippet
+
+# Remove a skill
+agpm remove dep skill old-skill
 ```
 
 ### `agpm config`

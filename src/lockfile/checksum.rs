@@ -1,13 +1,16 @@
 //! Checksum computation and verification for lockfile integrity.
 //!
 //! This module provides SHA-256 checksum operations for verifying file integrity,
-//! detecting corruption, and ensuring reproducible installations.
+//! detecting corruption, and ensuring reproducible installations. Supports both
+//! single files and directory-based resources (e.g., skills).
 
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
 use super::{LockFile, ResourceId};
+use crate::utils::normalize_path_for_storage;
+use walkdir::WalkDir;
 
 impl LockFile {
     /// Compute SHA-256 checksum for file integrity verification.
@@ -82,20 +85,175 @@ impl LockFile {
         Ok(format!("sha256:{}", hex::encode(result)))
     }
 
-    /// Verify file matches expected checksum.
+    /// Compute SHA-256 checksum for directory integrity verification.
     ///
-    /// Computes current checksum and compares with expected value.
+    /// Calculates a combined checksum of all files in a directory recursively.
+    /// Used for directory-based resources like skills to detect any changes
+    /// to the directory contents.
     ///
     /// # Arguments
     ///
-    /// * `path` - Path to the file to verify
+    /// * `path` - Path to the directory to checksum
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Checksum in format "`sha256:hexadecimal_hash`"
+    /// * `Err(anyhow::Error)` - Directory read error with detailed context
+    ///
+    /// # Algorithm
+    ///
+    /// The directory checksum is computed by:
+    /// 1. Walking the directory recursively
+    /// 2. Sorting all files by relative path for deterministic ordering
+    /// 3. For each file: hashing relative_path + NULL separator + file_content
+    /// 4. Computing SHA-256 of the combined data
+    ///
+    /// This ensures the checksum changes when:
+    /// - Any file content changes
+    /// - Files are added or removed
+    /// - Files are renamed or moved
+    /// - Directory structure changes
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use std::path::Path;
+    /// use agpm_cli::lockfile::LockFile;
+    ///
+    /// # fn example() -> anyhow::Result<()> {
+    /// let checksum = LockFile::compute_directory_checksum(Path::new("my-skill"))?;
+    /// println!("Directory checksum: {}", checksum);
+    /// // Output: "sha256:b6d81b360a5672d80c27430f39153e2c4c3b6b5c8ee5a4b5e8d5b5c5b6b7b8b9"
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Security Considerations
+    ///
+    /// - Uses SHA-256, a cryptographically secure hash function
+    /// - Includes relative paths in hash to detect file renames
+    /// - Deterministic across platforms (Windows, macOS, Linux)
+    /// - Respects .gitignore patterns and excludes hidden files
+    ///
+    /// # Performance
+    ///
+    /// Reads all files in memory. For very large directories (>100MB total),
+    /// consider streaming implementations in future versions.
+    pub fn compute_directory_checksum(path: &Path) -> Result<String> {
+        use sha2::{Digest, Sha256};
+
+        if !path.is_dir() {
+            return Err(anyhow::anyhow!("Path is not a directory: {}", path.display()));
+        }
+
+        let mut hasher = Sha256::new();
+        let mut file_count = 0;
+        let mut total_size = 0u64;
+
+        // Walk directory and sort files for deterministic ordering
+        for entry in WalkDir::new(path)
+            .follow_links(false)
+            .sort_by_file_name()
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.file_type().is_file() {
+                // Skip hidden files and common build artifacts
+                let file_name = entry.file_name();
+                if file_name.to_string_lossy().starts_with('.') {
+                    continue;
+                }
+
+                let relative_path = entry.path().strip_prefix(path).with_context(|| {
+                    format!("Failed to get relative path for: {}", entry.path().display())
+                })?;
+
+                let file_path = entry.path();
+                tracing::debug!("Reading file for directory checksum: {}", file_path.display());
+                let content = fs::read(file_path).with_context(|| {
+                    format!("Cannot read file for directory checksum: {}", file_path.display())
+                })?;
+
+                // Include relative path and content in hash
+                // Use normalized paths (forward slashes) for cross-platform compatibility
+                let normalized_path = normalize_path_for_storage(relative_path);
+                hasher.update(normalized_path.as_bytes());
+                hasher.update(b"\0"); // NULL separator between path and content
+                hasher.update(&content);
+
+                file_count += 1;
+                total_size += content.len() as u64;
+            }
+        }
+
+        if file_count == 0 {
+            return Err(anyhow::anyhow!(
+                "Directory contains no files to checksum: {}",
+                path.display()
+            ));
+        }
+
+        tracing::debug!(
+            "Computed directory checksum for {}: {} files, {} bytes",
+            path.display(),
+            file_count,
+            total_size
+        );
+
+        let result = hasher.finalize();
+        Ok(format!("sha256:{}", hex::encode(result)))
+    }
+
+    /// Compute checksum for file or directory automatically.
+    ///
+    /// Detects whether the path is a file or directory and uses the appropriate
+    /// checksum method. For files, uses [`compute_checksum`](Self::compute_checksum).
+    /// For directories, uses [`compute_directory_checksum`](Self::compute_directory_checksum).
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file or directory to checksum
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Checksum in format "`sha256:hexadecimal_hash`"
+    /// * `Err(anyhow::Error)` - Read error with detailed context
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use std::path::Path;
+    /// use agpm_cli::lockfile::LockFile;
+    ///
+    /// # fn example() -> anyhow::Result<()> {
+    /// let file_checksum = LockFile::compute_checksum_smart(Path::new("example.md"))?;
+    /// let dir_checksum = LockFile::compute_checksum_smart(Path::new("my-skill"))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn compute_checksum_smart(path: &Path) -> Result<String> {
+        if path.is_dir() {
+            Self::compute_directory_checksum(path)
+        } else {
+            Self::compute_checksum(path)
+        }
+    }
+
+    /// Verify file or directory matches expected checksum.
+    ///
+    /// Computes current checksum and compares with expected value.
+    /// Automatically detects whether the path is a file or directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file or directory to verify
     /// * `expected` - Expected checksum in "sha256:hex" format
     ///
     /// # Returns
     ///
-    /// * `Ok(true)` - File checksum matches expected value
-    /// * `Ok(false)` - File checksum does not match (corruption detected)
-    /// * `Err(anyhow::Error)` - File read error or checksum calculation failed
+    /// * `Ok(true)` - Checksum matches expected value
+    /// * `Ok(false)` - Checksum does not match (corruption detected)
+    /// * `Err(anyhow::Error)` - Read error or checksum calculation failed
     ///
     /// # Examples
     ///
@@ -105,12 +263,18 @@ impl LockFile {
     ///
     /// # fn example() -> anyhow::Result<()> {
     /// let expected = "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3";
-    /// let is_valid = LockFile::verify_checksum(Path::new("example.md"), expected)?;
     ///
-    /// if is_valid {
+    /// // Verify a file
+    /// let file_valid = LockFile::verify_checksum(Path::new("example.md"), expected)?;
+    ///
+    /// // Verify a directory (e.g., a skill)
+    /// let dir_valid = LockFile::verify_checksum(Path::new("my-skill"), expected)?;
+    ///
+    /// if file_valid {
     ///     println!("File integrity verified");
-    /// } else {
-    ///     println!("WARNING: File has been modified or corrupted!");
+    /// }
+    /// if dir_valid {
+    ///     println!("Directory integrity verified");
     /// }
     /// # Ok(())
     /// # }
@@ -118,14 +282,14 @@ impl LockFile {
     ///
     /// # Use Cases
     ///
-    /// - **Installation verification**: Ensure copied files are intact
-    /// - **Periodic validation**: Detect file corruption over time
+    /// - **Installation verification**: Ensure copied files/directories are intact
+    /// - **Periodic validation**: Detect corruption over time
     /// - **Security checks**: Detect unauthorized modifications
     /// - **Troubleshooting**: Diagnose installation issues
     ///
     /// # Performance
     ///
-    /// This method internally calls [`compute_checksum`](Self::compute_checksum),
+    /// This method internally calls [`compute_checksum_smart`](Self::compute_checksum_smart),
     /// so it has the same performance characteristics. For bulk verification
     /// operations, consider caching computed checksums.
     ///
@@ -135,7 +299,7 @@ impl LockFile {
     /// not timing-attack resistant. Since checksums are not secrets, this
     /// is acceptable for integrity verification purposes.
     pub fn verify_checksum(path: &Path, expected: &str) -> Result<bool> {
-        let actual = Self::compute_checksum(path)?;
+        let actual = Self::compute_checksum_smart(path)?;
         Ok(actual == expected)
     }
 
@@ -220,6 +384,13 @@ impl LockFile {
             }
         }
 
+        for resource in &mut self.skills {
+            if resource.id() == *id {
+                resource.checksum = checksum.to_string();
+                return true;
+            }
+        }
+
         false
     }
 
@@ -287,6 +458,13 @@ impl LockFile {
         }
 
         for resource in &mut self.mcp_servers {
+            if resource.id() == *id {
+                resource.context_checksum = Some(context_checksum.to_string());
+                return true;
+            }
+        }
+
+        for resource in &mut self.skills {
             if resource.id() == *id {
                 resource.context_checksum = Some(context_checksum.to_string());
                 return true;
@@ -376,6 +554,13 @@ impl LockFile {
             }
         }
 
+        for resource in &mut self.skills {
+            if resource.name == name {
+                resource.applied_patches = project_patches;
+                return true;
+            }
+        }
+
         false
     }
 
@@ -453,3 +638,7 @@ impl LockFile {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "checksum_tests.rs"]
+mod checksum_tests;

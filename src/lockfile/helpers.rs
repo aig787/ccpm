@@ -50,7 +50,8 @@ pub(crate) fn serialize_lockfile_with_inline_patches<T: serde::Serialize>(
     let mut doc: DocumentMut = toml_str.parse().context("Failed to parse TOML document")?;
 
     // Convert all `applied_patches` and `template_vars` tables to inline tables
-    let resource_types = ["agents", "snippets", "commands", "scripts", "hooks", "mcp-servers"];
+    let resource_types =
+        ["agents", "snippets", "commands", "scripts", "hooks", "mcp-servers", "skills"];
 
     for resource_type in &resource_types {
         if let Some(Item::ArrayOfTables(array)) = doc.get_mut(resource_type) {

@@ -40,7 +40,7 @@ pub async fn expand_pattern_to_concrete_deps(
     let pattern = dep.get_path();
 
     if dep.is_local() {
-        expand_local_pattern(dep, pattern, manifest_dir).await
+        expand_local_pattern(dep, pattern, manifest_dir, resource_type).await
     } else {
         expand_remote_pattern(dep, pattern, resource_type, source_manager, cache).await
     }
@@ -51,6 +51,7 @@ async fn expand_local_pattern(
     dep: &ResourceDependency,
     pattern: &str,
     manifest_dir: Option<&Path>,
+    resource_type: crate::core::ResourceType,
 ) -> Result<Vec<(String, ResourceDependency)>> {
     // For absolute patterns, use the parent directory as base and strip the pattern to just the filename part
     // For relative patterns, use manifest directory
@@ -89,8 +90,17 @@ async fn expand_local_pattern(
         (base, pattern.to_string())
     };
 
-    let pattern_resolver = PatternResolver::new();
-    let matches = pattern_resolver.resolve(&search_pattern, &base_path)?;
+    let matches = if resource_type == crate::core::ResourceType::Skill {
+        // For skills, use the specialized skill directory matching
+        crate::resolver::skills::match_skill_directories(&base_path, &search_pattern, None)?
+            .into_iter()
+            .map(|(_name, path)| PathBuf::from(path))
+            .collect()
+    } else {
+        // For other resource types, use the regular pattern resolver
+        let pattern_resolver = PatternResolver::new();
+        pattern_resolver.resolve(&search_pattern, &base_path)?
+    };
 
     debug!("Pattern '{}' matched {} files", pattern, matches.len());
 
@@ -179,8 +189,21 @@ async fn expand_remote_pattern(
         .with_context(|| format!("Failed to create worktree for {}@{}", source_name, version))?;
 
     // Resolve the pattern within the worktree
-    let pattern_resolver = PatternResolver::new();
-    let matches = pattern_resolver.resolve(pattern, &worktree_path)?;
+    let matches = if _resource_type == crate::core::ResourceType::Skill {
+        // For skills, use the specialized skill directory matching
+        crate::resolver::skills::match_skill_directories(
+            &worktree_path,
+            pattern,
+            Some(&worktree_path),
+        )?
+        .into_iter()
+        .map(|(_name, path)| PathBuf::from(path))
+        .collect()
+    } else {
+        // For other resource types, use the regular pattern resolver
+        let pattern_resolver = PatternResolver::new();
+        pattern_resolver.resolve(pattern, &worktree_path)?
+    };
 
     debug!("Remote pattern '{}' in {} matched {} files", pattern, source_name, matches.len());
 
@@ -361,7 +384,14 @@ mod tests {
 
         // Note: This test would need actual test files to work properly
         // For now, we just verify the function signature and basic structure
-        match expand_local_pattern(&dep, "tests/fixtures/*.md", None).await {
+        match expand_local_pattern(
+            &dep,
+            "tests/fixtures/*.md",
+            None,
+            crate::core::ResourceType::Snippet,
+        )
+        .await
+        {
             Ok(_) => println!("Pattern expansion succeeded"),
             Err(e) => println!("Pattern expansion failed (expected in test): {}", e),
         }

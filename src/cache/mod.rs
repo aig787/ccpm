@@ -1978,7 +1978,7 @@ impl Cache {
     /// Perform a fetch operation with hybrid locking (in-process and cross-process).
     ///
     /// This method implements a two-level locking strategy:
-    /// 1. In-process locks (Arc<Mutex>) for fast coordination within the same process
+    /// 1. In-process locks (`Arc<Mutex>`) for fast coordination within the same process
     /// 2. File-based locks for cross-process coordination
     ///
     /// The fetch will only happen once per repository per command execution.

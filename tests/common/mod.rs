@@ -322,6 +322,15 @@ impl TestProject {
         Ok(())
     }
 
+    /// Write agpm.private.toml manifest to project directory
+    pub async fn write_private_manifest(&self, content: &str) -> Result<()> {
+        let manifest_path = self.project_dir.join("agpm.private.toml");
+        fs::write(&manifest_path, content)
+            .await
+            .with_context(|| format!("Failed to write private manifest to {:?}", manifest_path))?;
+        Ok(())
+    }
+
     /// Write a lockfile to the project directory
     pub async fn write_lockfile(&self, content: &str) -> Result<()> {
         let lockfile_path = self.project_dir.join("agpm.lock");
@@ -461,6 +470,26 @@ impl TestSourceRepo {
             fs::create_dir_all(parent).await?;
         }
 
+        fs::write(&file_path, content).await?;
+        Ok(())
+    }
+
+    /// Add a skill directory with SKILL.md file
+    pub async fn create_skill(&self, name: &str, content: &str) -> Result<()> {
+        let skill_dir = self.path.join("skills").join(name);
+        fs::create_dir_all(&skill_dir).await?;
+
+        let skill_md_path = skill_dir.join("SKILL.md");
+        fs::write(&skill_md_path, content).await?;
+        Ok(())
+    }
+
+    /// Create a file at an arbitrary path in the repo
+    pub async fn create_file(&self, path: &str, content: &str) -> Result<()> {
+        let file_path = self.path.join(path);
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
         fs::write(&file_path, content).await?;
         Ok(())
     }

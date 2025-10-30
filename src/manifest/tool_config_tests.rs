@@ -425,16 +425,16 @@ my-agent = { source = "community", path = "agents/helper.md", version = "v1.0.0"
     #[test]
     fn test_tool_config_with_all_resource_types() {
         let toml = r#"
-test-tool = { path = ".test", enabled = true, resources = { agents = { path = "agents", flatten = true }, snippets = { path = "snippets", flatten = false }, commands = { path = "commands", flatten = true }, scripts = { path = "scripts", flatten = false }, hooks = { merge-target = ".test/settings.json" }, mcp-servers = { merge-target = ".test/mcp.json" } } }
+test-tool = { path = ".test", enabled = true, resources = { agents = { path = "agents", flatten = true }, snippets = { path = "snippets", flatten = false }, commands = { path = "commands", flatten = true }, scripts = { path = "scripts", flatten = false }, skills = { path = "skills", flatten = false }, hooks = { merge-target = ".test/settings.json" }, mcp-servers = { merge-target = ".test/mcp.json" } } }
 "#;
 
         let config: ToolsConfig = toml::from_str(toml).unwrap();
         let tool = config.types.get("test-tool").unwrap();
 
-        assert_eq!(tool.resources.len(), 6);
+        assert_eq!(tool.resources.len(), 7);
 
         // Verify file-based resources have paths
-        for resource_type in ["agents", "snippets", "commands", "scripts"] {
+        for resource_type in ["agents", "snippets", "commands", "scripts", "skills"] {
             let resource = tool.resources.get(resource_type).unwrap();
             assert!(resource.path.is_some());
             assert!(resource.merge_target.is_none());

@@ -11,7 +11,7 @@ installations using lockfile-based dependency management, similar to Cargo.
 - 🌐 **Git-based distribution** - Install from any Git repository
 - 🚀 **No central registry** - Fully decentralized approach
 - 🤖 **Multi-tool support** - Claude Code, OpenCode (alpha), and custom tools
-- 🔧 **Six resource types** - Agents, Snippets, Commands, Scripts, Hooks, MCP Servers
+- 🔧 **Seven resource types** - Agents, Snippets, Commands, Scripts, Hooks, MCP Servers, Skills
 - 🎯 **Pattern-based dependencies** - Bulk installation with glob patterns
 - 🖥️ **Cross-platform** - Windows, macOS, and Linux support
 - 🔄 **Transitive dependencies** - Automatic dependency resolution
@@ -73,6 +73,11 @@ react-hooks = { source = "community", path = "snippets/react-hooks.md", version 
 
 [commands]
 deploy = { source = "community", path = "commands/deploy.md", version = "v2.0.0" }
+
+[skills]
+# Claude Skills - directory-based expertise packages
+rust-helper = { source = "community", path = "skills/rust-helper", version = "v1.0.0" }
+ai-reviewer = { source = "community", path = "skills/ai-reviewer", version = "^2.1.0" }
 ```
 
 See [docs/examples/](docs/examples/) for more complete examples.
@@ -139,7 +144,7 @@ AGPM provides real-time visibility into installation progress with a clean, prof
 
 ## Resource Types
 
-AGPM manages six types of resources:
+AGPM manages seven types of resources:
 
 - **Agents** - AI assistant configurations (`.claude/agents/`, `.opencode/agent/`)
 - **Snippets** - Reusable code templates (`.agpm/snippets/`)
@@ -147,6 +152,7 @@ AGPM manages six types of resources:
 - **Scripts** - Executable automation files (`.claude/scripts/`)
 - **Hooks** - Event-based automation (→ `.claude/settings.local.json`)
 - **MCP Servers** - Model Context Protocol servers (→ `.mcp.json`, `opencode.json`)
+- **Skills** - Directory-based expertise packages with SKILL.md (`.claude/skills/`)
 
 See the [Resources Guide](docs/resources.md) for detailed information.
 
@@ -207,6 +213,7 @@ See the [Templating Guide](docs/templating.md) for complete documentation and ex
 | [Multi-Tool Support](docs/multi-tool-support.md) | Managing resources for multiple AI assistants |
 | [Dependencies Guide](docs/dependencies.md) | Version constraints, conflicts, and transitive dependencies |
 | [Resources Guide](docs/resources.md) | Working with different resource types |
+| [Claude Skills Guide](docs/skills-guide.md) | Working with Claude Skills (NEW!) |
 | [Configuration Guide](docs/configuration.md) | Global config, authentication, and patches |
 | [Manifest Reference](docs/manifest-reference.md) | Complete agpm.toml schema |
 | [Versioning Guide](docs/versioning.md) | Version constraints and Git references |

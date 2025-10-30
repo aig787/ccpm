@@ -213,6 +213,7 @@ impl LockFile {
             }
             crate::core::ResourceType::Script => &mut self.scripts,
             crate::core::ResourceType::Hook => &mut self.hooks,
+            crate::core::ResourceType::Skill => &mut self.skills,
         };
 
         // Remove existing entry if present
@@ -256,14 +257,18 @@ impl LockFile {
     pub(crate) fn get_resource(&self, name: &str) -> Option<&LockedResource> {
         // Simple name matching - may return first of multiple resources with same name
         // For precise matching when duplicates exist, use find_resource_by_id()
+        // Matches both canonical name and manifest_alias for backward compatibility
+        let matches =
+            |r: &&LockedResource| r.name == name || r.manifest_alias.as_deref() == Some(name);
+
         self.agents
             .iter()
-            .find(|r| r.name == name)
-            .or_else(|| self.snippets.iter().find(|r| r.name == name))
-            .or_else(|| self.commands.iter().find(|r| r.name == name))
-            .or_else(|| self.scripts.iter().find(|r| r.name == name))
-            .or_else(|| self.hooks.iter().find(|r| r.name == name))
-            .or_else(|| self.mcp_servers.iter().find(|r| r.name == name))
+            .find(matches)
+            .or_else(|| self.snippets.iter().find(matches))
+            .or_else(|| self.commands.iter().find(matches))
+            .or_else(|| self.scripts.iter().find(matches))
+            .or_else(|| self.hooks.iter().find(matches))
+            .or_else(|| self.mcp_servers.iter().find(matches))
     }
 
     /// Get resources by type as slice.
@@ -276,6 +281,7 @@ impl LockFile {
             ResourceType::Script => &self.scripts,
             ResourceType::Hook => &self.hooks,
             ResourceType::McpServer => &self.mcp_servers,
+            ResourceType::Skill => &self.skills,
         }
     }
 
@@ -292,6 +298,7 @@ impl LockFile {
             ResourceType::Script => &mut self.scripts,
             ResourceType::Hook => &mut self.hooks,
             ResourceType::McpServer => &mut self.mcp_servers,
+            ResourceType::Skill => &mut self.skills,
         }
     }
 

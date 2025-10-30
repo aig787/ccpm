@@ -165,6 +165,8 @@ pub enum DependencyType {
     Hook(HookDependency),
     /// An MCP server dependency
     McpServer(McpServerDependency),
+    /// A skill dependency
+    Skill(SkillDependency),
 }
 
 impl DependencyType {
@@ -178,6 +180,7 @@ impl DependencyType {
             Self::Script(dep) => &dep.common,
             Self::Hook(dep) => &dep.common,
             Self::McpServer(dep) => &dep.common,
+            Self::Skill(dep) => &dep.common,
         }
     }
 
@@ -191,6 +194,7 @@ impl DependencyType {
             Self::Script(_) => "script",
             Self::Hook(_) => "hook",
             Self::McpServer(_) => "mcp-server",
+            Self::Skill(_) => "skill",
         }
     }
 }
@@ -291,6 +295,14 @@ pub struct ScriptDependency {
 /// Arguments for adding a hook dependency
 #[derive(Debug, Clone, Args)]
 pub struct HookDependency {
+    /// Common dependency specification fields
+    #[command(flatten)]
+    pub common: DependencySpec,
+}
+
+/// Arguments for adding a skill dependency
+#[derive(Debug, Clone, Args)]
+pub struct SkillDependency {
     /// Common dependency specification fields
     #[command(flatten)]
     pub common: DependencySpec,

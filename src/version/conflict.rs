@@ -200,7 +200,7 @@ impl ConflictDetector {
         intersection.is_none_or(|i| !i.is_empty())
     }
 
-    /// Convert a `semver::VersionReq` to `pubgrub::Ranges`<Version>
+    /// Convert a `semver::VersionReq` to `pubgrub::Ranges<Version>`
     ///
     /// In semver, multiple comparators in a single requirement are `ANDed` together (intersection),
     /// not `ORed` (union). For example, ">=5.0.0, <6.0.0" means [5.0.0, 6.0.0), not the entire number line.

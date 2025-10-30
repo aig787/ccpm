@@ -86,13 +86,8 @@ mod fixtures;
 // Test configuration (used by versioning tests)
 mod test_config;
 
-// Test modules organized by functionality
-mod commands;
-mod config;
 mod install;
-mod lockfile;
-mod patterns;
-mod system;
+mod skills;
 mod templating;
 mod transitive;
 mod versioning;

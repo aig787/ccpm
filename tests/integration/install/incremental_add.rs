@@ -87,7 +87,9 @@ async fn get_lockfile_dependencies(lockfile_path: &PathBuf, resource_name: &str)
     let lockfile: toml::Value = toml::from_str(&lockfile_content).unwrap();
 
     // Search in all resource type arrays
-    for resource_type in &["agents", "snippets", "commands", "scripts", "hooks", "mcp_servers"] {
+    for resource_type in
+        &["agents", "snippets", "commands", "scripts", "hooks", "mcp-servers", "skills"]
+    {
         if let Some(resources) = lockfile.get(resource_type).and_then(|v| v.as_array()) {
             for resource in resources {
                 // Match by name OR manifest_alias for backward compatibility

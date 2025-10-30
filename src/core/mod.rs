@@ -137,6 +137,10 @@
 //!                 println!("Found hook configuration");
 //!                 println!("Install dir: {}", resource_type.default_directory().unwrap_or("none"));
 //!             }
+//!             ResourceType::Skill => {
+//!                 println!("Found skill resource");
+//!                 println!("Install dir: {}", resource_type.default_directory().unwrap_or("none"));
+//!             }
 //!         }
 //!     } else {
 //!         println!("No recognized resource found");

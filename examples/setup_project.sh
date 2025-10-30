@@ -104,6 +104,11 @@ agpm add dep mcp-server --no-install local-deps:mcp-servers/filesystem.json --na
 agpm add dep mcp-server --no-install local-deps:mcp-servers/fetch.json --name fetch
 
 echo ""
+echo "→ Adding skills via command"
+agpm add dep skill --no-install local-deps:skills/code-reviewer --name code-reviewer
+agpm add dep skill --no-install local-deps:skills/commit-message-generator --name commit-message-generator
+
+echo ""
 echo "→ Adding additional agents from agpm-community (without installing)"
 agpm add dep agent --no-install --name api-designer "community:agents/awesome-claude-code-subagents/categories/01-core-development/api-designer.md@v0.0.1"
 agpm add dep agent --no-install --name backend-developer "community:agents/awesome-claude-code-subagents/categories/01-core-development/backend-developer.md@^v0.0.1"

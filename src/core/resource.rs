@@ -198,6 +198,13 @@ pub enum ResourceType {
     /// that configure scripts to run at specific events (`PreToolUse`, `PostToolUse`, etc.)
     /// and are merged into settings.local.json
     Hook,
+
+    /// Claude Skills - directory-based resources
+    ///
+    /// Skills are directories containing a SKILL.md file with frontmatter and optional
+    /// supporting files. They enable packaging expertise, procedures, and resources
+    /// that Claude can automatically invoke based on context.
+    Skill,
     // Future resource types can be added here
 }
 
@@ -208,7 +215,7 @@ impl ResourceType {
     /// for iterating over all resource types when processing manifests, lockfiles,
     /// or performing batch operations.
     ///
-    /// The order is guaranteed to be stable: Agent, Snippet, Command, `McpServer`, Script, Hook
+    /// The order is guaranteed to be stable: Agent, Snippet, Command, `McpServer`, Script, Hook, Skill
     ///
     /// # Examples
     ///
@@ -221,10 +228,18 @@ impl ResourceType {
     /// }
     ///
     /// // Count total resource types
-    /// assert_eq!(ResourceType::all().len(), 6);
+    /// assert_eq!(ResourceType::all().len(), 7);
     /// ```
     pub const fn all() -> &'static [Self] {
-        &[Self::Agent, Self::Snippet, Self::Command, Self::McpServer, Self::Script, Self::Hook]
+        &[
+            Self::Agent,
+            Self::Snippet,
+            Self::Command,
+            Self::McpServer,
+            Self::Script,
+            Self::Hook,
+            Self::Skill,
+        ]
     }
 
     /// Get the plural form of the resource type.
@@ -238,6 +253,7 @@ impl ResourceType {
     ///
     /// assert_eq!(ResourceType::Agent.to_plural(), "agents");
     /// assert_eq!(ResourceType::McpServer.to_plural(), "mcp-servers");
+    /// assert_eq!(ResourceType::Skill.to_plural(), "skills");
     /// ```
     pub const fn to_plural(&self) -> &'static str {
         match self {
@@ -247,6 +263,7 @@ impl ResourceType {
             Self::Script => "scripts",
             Self::Hook => "hooks",
             Self::McpServer => "mcp-servers",
+            Self::Skill => "skills",
         }
     }
 
@@ -263,6 +280,7 @@ impl ResourceType {
     /// - [`McpServer`] → `None` (merged into `.mcp.json`, not staged to disk)
     /// - [`Script`] → `Some(".claude/scripts")`
     /// - [`Hook`] → `None` (merged into `.claude/settings.local.json`, not staged to disk)
+    /// - [`ResourceType::Skill`] → `Some(".claude/skills")` (directory-based resources)
     ///
     /// # Examples
     ///
@@ -298,6 +316,7 @@ impl ResourceType {
             Self::McpServer => None, // Merged into .mcp.json, not staged to disk
             Self::Script => Some(".claude/scripts"),
             Self::Hook => None, // Merged into .claude/settings.local.json, not staged to disk
+            Self::Skill => Some(".claude/skills"), // Directory-based resources
         }
     }
 
@@ -317,6 +336,7 @@ impl ResourceType {
     /// - [`ResourceType::McpServer`] → `"claude-code"`
     /// - [`ResourceType::Script`] → `"claude-code"`
     /// - [`ResourceType::Hook`] → `"claude-code"`
+    /// - [`ResourceType::Skill`] → `"claude-code"`
     ///
     /// # Examples
     ///
@@ -326,6 +346,7 @@ impl ResourceType {
     /// assert_eq!(ResourceType::Agent.default_tool(), "claude-code");
     /// assert_eq!(ResourceType::Snippet.default_tool(), "agpm");
     /// assert_eq!(ResourceType::Command.default_tool(), "claude-code");
+    /// assert_eq!(ResourceType::Skill.default_tool(), "claude-code");
     /// ```
     ///
     /// # Rationale
@@ -355,6 +376,7 @@ impl std::fmt::Display for ResourceType {
             Self::McpServer => write!(f, "mcp-server"),
             Self::Script => write!(f, "script"),
             Self::Hook => write!(f, "hook"),
+            Self::Skill => write!(f, "skill"),
         }
     }
 }
@@ -370,6 +392,7 @@ impl std::str::FromStr for ResourceType {
             "mcp-server" | "mcp-servers" | "mcpserver" | "mcp" => Ok(Self::McpServer),
             "script" | "scripts" => Ok(Self::Script),
             "hook" | "hooks" => Ok(Self::Hook),
+            "skill" | "skills" => Ok(Self::Skill),
             _ => Err(crate::core::AgpmError::InvalidResourceType {
                 resource_type: s.to_string(),
             }),
@@ -510,6 +533,7 @@ pub trait Resource {
     ///         ResourceType::McpServer => println!("This is an MCP server"),
     ///         ResourceType::Script => println!("This is an executable script"),
     ///         ResourceType::Hook => println!("This is a hook configuration"),
+    ///         ResourceType::Skill => println!("This is a skill resource"),
     ///     }
     /// }
     /// ```
@@ -830,19 +854,49 @@ mod tests {
     #[test]
     fn test_resource_type_all() {
         let all_types = ResourceType::all();
-        assert_eq!(all_types.len(), 6);
+        assert_eq!(all_types.len(), 7);
         assert_eq!(all_types[0], ResourceType::Agent);
         assert_eq!(all_types[1], ResourceType::Snippet);
         assert_eq!(all_types[2], ResourceType::Command);
         assert_eq!(all_types[3], ResourceType::McpServer);
         assert_eq!(all_types[4], ResourceType::Script);
         assert_eq!(all_types[5], ResourceType::Hook);
+        assert_eq!(all_types[6], ResourceType::Skill);
 
         // Test that we can iterate
         let mut count = 0;
         for _ in ResourceType::all() {
             count += 1;
         }
-        assert_eq!(count, 6);
+        assert_eq!(count, 7);
+    }
+
+    #[test]
+    fn test_resource_type_skill() {
+        // Test Display
+        assert_eq!(ResourceType::Skill.to_string(), "skill");
+
+        // Test to_plural
+        assert_eq!(ResourceType::Skill.to_plural(), "skills");
+
+        // Test default_directory
+        assert_eq!(ResourceType::Skill.default_directory(), Some(".claude/skills"));
+
+        // Test default_tool
+        assert_eq!(ResourceType::Skill.default_tool(), "claude-code");
+
+        // Test FromStr
+        use std::str::FromStr;
+        assert_eq!(ResourceType::from_str("skill").unwrap(), ResourceType::Skill);
+        assert_eq!(ResourceType::from_str("skills").unwrap(), ResourceType::Skill);
+        assert_eq!(ResourceType::from_str("SKILL").unwrap(), ResourceType::Skill);
+
+        // Test serialization
+        let skill = ResourceType::Skill;
+        let json = serde_json::to_string(&skill).unwrap();
+        assert_eq!(json, "\"skill\"");
+
+        let deserialized: ResourceType = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ResourceType::Skill);
     }
 }

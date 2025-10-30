@@ -285,6 +285,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         };
 
         let manifest_dir = Path::new("/project");

@@ -102,6 +102,10 @@ pub struct PrivateLockFile {
     /// Private patches for hooks
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hooks: Vec<PrivateLockedResource>,
+
+    /// Private patches for skills
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skills: Vec<PrivateLockedResource>,
 }
 
 impl Default for PrivateLockFile {
@@ -121,6 +125,7 @@ impl PrivateLockFile {
             scripts: Vec::new(),
             mcp_servers: Vec::new(),
             hooks: Vec::new(),
+            skills: Vec::new(),
         }
     }
 
@@ -255,6 +260,7 @@ impl PrivateLockFile {
             "scripts" => &mut self.scripts,
             "mcp-servers" => &mut self.mcp_servers,
             "hooks" => &mut self.hooks,
+            "skills" => &mut self.skills,
             _ => return,
         };
 
@@ -281,6 +287,7 @@ impl PrivateLockFile {
             "scripts" => &self.scripts,
             "mcp-servers" => &self.mcp_servers,
             "hooks" => &self.hooks,
+            "skills" => &self.skills,
             _ => return None,
         };
 
@@ -314,7 +321,8 @@ fn serialize_private_lockfile_with_inline_patches(lockfile: &PrivateLockFile) ->
     let mut doc: DocumentMut = toml_str.parse().context("Failed to parse TOML document")?;
 
     // Convert all `applied_patches` tables to inline tables
-    let resource_types = ["agents", "snippets", "commands", "scripts", "hooks", "mcp-servers"];
+    use crate::core::ResourceType;
+    let resource_types: Vec<&str> = ResourceType::all().iter().map(|rt| rt.to_plural()).collect();
 
     for resource_type in &resource_types {
         if let Some(Item::ArrayOfTables(array)) = doc.get_mut(resource_type) {

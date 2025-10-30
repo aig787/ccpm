@@ -785,6 +785,16 @@ pub struct Manifest {
     /// See [`ResourceDependency`] for specification format details.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub hooks: HashMap<String, ResourceDependency>,
+    /// Skill dependencies mapping names to their specifications.
+    ///
+    /// Skills are directory-based resources containing a SKILL.md file with
+    /// frontmatter and optional supporting files. They enable packaging expertise,
+    /// procedures, and resources that Claude can automatically invoke based on context.
+    /// Skills are installed to `.claude/skills/<name>/` as directories.
+    ///
+    /// See [`ResourceDependency`] for specification format details.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub skills: HashMap<String, ResourceDependency>,
 
     /// Patches for overriding resource metadata.
     ///
@@ -967,6 +977,7 @@ impl Manifest {
             mcp_servers: HashMap::new(),
             scripts: HashMap::new(),
             hooks: HashMap::new(),
+            skills: HashMap::new(),
             patches: ManifestPatches::new(),
             project_patches: ManifestPatches::new(),
             private_patches: ManifestPatches::new(),
@@ -1224,6 +1235,7 @@ impl Manifest {
             crate::core::ResourceType::Script => "scripts",
             crate::core::ResourceType::Hook => "hooks",
             crate::core::ResourceType::McpServer => "mcp-servers",
+            crate::core::ResourceType::Skill => "skills",
         };
 
         // Check if there's a configured override
@@ -1870,6 +1882,7 @@ impl Manifest {
             ResourceType::Script => Some(&self.scripts),
             ResourceType::Hook => Some(&self.hooks),
             ResourceType::McpServer => Some(&self.mcp_servers),
+            ResourceType::Skill => Some(&self.skills),
         }
     }
 
@@ -1889,6 +1902,7 @@ impl Manifest {
             ResourceType::Script => Some(&mut self.scripts),
             ResourceType::Hook => Some(&mut self.hooks),
             ResourceType::McpServer => Some(&mut self.mcp_servers),
+            ResourceType::Skill => Some(&mut self.skills),
         }
     }
 
@@ -2088,6 +2102,17 @@ impl Manifest {
     ) -> Vec<(&str, std::borrow::Cow<'_, ResourceDependency>, crate::core::ResourceType)> {
         let mut deps = Vec::new();
 
+        tracing::debug!(
+            "all_dependencies_with_types: agents={}, snippets={}, commands={}, scripts={}, hooks={}, mcp_servers={}, skills={}",
+            self.agents.len(),
+            self.snippets.len(),
+            self.commands.len(),
+            self.scripts.len(),
+            self.hooks.len(),
+            self.mcp_servers.len(),
+            self.skills.len()
+        );
+
         // Use ResourceType::all() to iterate through all resource types
         for resource_type in crate::core::ResourceType::all() {
             if let Some(type_deps) = self.get_dependencies(*resource_type) {
@@ -2172,6 +2197,31 @@ impl Manifest {
         self.agents.contains_key(name)
             || self.snippets.contains_key(name)
             || self.commands.contains_key(name)
+    }
+
+    /// Get the total number of dependencies across all resource types.
+    ///
+    /// Counts all dependencies from agents, snippets, commands, mcp-servers,
+    /// scripts, hooks, and skills sections.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use agpm_cli::manifest::Manifest;
+    ///
+    /// let manifest = Manifest::new();
+    /// if manifest.total_dependencies() == 0 {
+    ///     println!("No dependencies defined");
+    /// }
+    /// ```
+    pub fn total_dependencies(&self) -> usize {
+        self.agents.len()
+            + self.snippets.len()
+            + self.commands.len()
+            + self.mcp_servers.len()
+            + self.scripts.len()
+            + self.hooks.len()
+            + self.skills.len()
     }
 
     /// Get a dependency by name from any section.
@@ -2412,6 +2462,9 @@ impl Manifest {
             crate::core::ResourceType::Hook => {
                 self.hooks.insert(name, dep);
             }
+            crate::core::ResourceType::Skill => {
+                self.skills.insert(name, dep);
+            }
         }
     }
 
@@ -2444,6 +2497,7 @@ impl Manifest {
             ResourceType::Script => &self.scripts,
             ResourceType::Hook => &self.hooks,
             ResourceType::McpServer => &self.mcp_servers,
+            ResourceType::Skill => &self.skills,
         }
     }
 

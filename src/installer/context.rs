@@ -117,6 +117,29 @@ impl<'a> InstallContext<'a> {
 /// Only `NotFound` errors are retried, as these indicate cache coherency issues.
 /// Other errors (permissions, I/O errors) fail immediately by returning Ok to bypass retry.
 pub(crate) async fn read_with_cache_retry(path: &Path) -> Result<String> {
+    // Handle skill directories by reading SKILL.md
+    if path.is_dir() {
+        let skill_md_path = path.join("SKILL.md");
+        if !skill_md_path.exists() {
+            return Err(anyhow::anyhow!(
+                "Skill directory missing required SKILL.md file: {} (expected at: {})",
+                path.display(),
+                skill_md_path.display()
+            ));
+        }
+        tracing::debug!("Reading skill directory {} via SKILL.md file", path.display());
+        // Call the non-recursive helper with the SKILL.md file path
+        return read_file_with_cache_retry(&skill_md_path).await;
+    }
+
+    read_file_with_cache_retry(path).await
+}
+
+/// Read a file with retry logic to handle cross-process filesystem cache coherency issues.
+///
+/// This is the actual retry implementation without directory handling
+/// to avoid recursion.
+async fn read_file_with_cache_retry(path: &Path) -> Result<String> {
     use std::io;
 
     let retry_strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(10)

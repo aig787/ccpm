@@ -17,6 +17,7 @@ This guide summarizes every field that appears in `agpm.toml` and how CLI inputs
 [scripts]
 [hooks]
 [mcp-servers]
+[skills]                  # Directory-based resources with SKILL.md
 [patch.<type>.<name>]     # Optional: Override resource fields
 ```
 
@@ -33,7 +34,7 @@ Each resource table maps a dependency name (key) to either a simple string path 
 
 | Field | Required | Applies to | Description | CLI mapping |
 | --- | --- | --- | --- | --- |
-| `source` | Only for Git resources | agents/snippets/commands/scripts/hooks/mcp-servers | Name from `[sources]`; omit for local filesystem paths. | Parsed from the `source:` prefix (e.g., `community:...`). |
+| `source` | Only for Git resources | agents/snippets/commands/scripts/hooks/mcp-servers/skills | Name from `[sources]`; omit for local filesystem paths. | Parsed from the `source:` prefix (e.g., `community:...`). |
 | `path` | Yes | All | File path inside the repo (Git) or filesystem path/glob (local). Patterns are detected by `*`, `?`, or `[]`. | Parsed from the middle portion of the spec. |
 | `version` | Default `"main"` for Git | Git resources | Tag, semantic range, `latest`, or branch alias. Used when no explicit `branch`/`rev` are provided. | Parsed from `@value` when using `agpm add dep`. Defaults to `main` if omitted. |
 | `tool` | Default varies by resource | All | Target tool: `claude-code`, `opencode`, `agpm`, or custom. **Defaults**: snippets → `agpm`, all others → `claude-code`. Routes resources to tool-specific directories. | Manual edit. |

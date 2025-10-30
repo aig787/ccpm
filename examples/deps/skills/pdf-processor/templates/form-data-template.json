@@ -1,0 +1,127 @@
+{
+  "form_templates": {
+    "job_application": {
+      "description": "Job application form template",
+      "fields": {
+        "first_name": "",
+        "last_name": "",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "city": "",
+        "state": "",
+        "zip_code": "",
+        "position": "",
+        "salary_expectation": "",
+        "start_date": "",
+        "authorization": "true",
+        "signature_date": ""
+      }
+    },
+    "invoice": {
+      "description": "Invoice form template",
+      "fields": {
+        "invoice_number": "",
+        "invoice_date": "",
+        "due_date": "",
+        "client_name": "",
+        "client_address": "",
+        "client_city": "",
+        "client_state": "",
+        "client_zip": "",
+        "item_1_description": "",
+        "item_1_quantity": "",
+        "item_1_price": "",
+        "item_2_description": "",
+        "item_2_quantity": "",
+        "item_2_price": "",
+        "subtotal": "",
+        "tax_rate": "",
+        "tax_amount": "",
+        "total": "",
+        "notes": ""
+      }
+    },
+    "tax_form": {
+      "description": "W-4 tax form template",
+      "fields": {
+        "first_name": "",
+        "last_name": "",
+        "social_security": "",
+        "address": "",
+        "city": "",
+        "state": "",
+        "zip_code": "",
+        "filing_status": "",
+        "allowances": "",
+        "additional_amount": "",
+        "exempt": "false"
+      }
+    },
+    "medical_history": {
+      "description": "Medical history form template",
+      "fields": {
+        "patient_name": "",
+        "date_of_birth": "",
+        "patient_id": "",
+        "primary_care_physician": "",
+        "emergency_contact_name": "",
+        "emergency_contact_phone": "",
+        "allergies": "",
+        "medications": "",
+        "medical_conditions": "",
+        "surgeries": "",
+        "family_history": "",
+        "insurance_provider": "",
+        "policy_number": "",
+        "date": "",
+        "signature": ""
+      }
+    },
+    "consent_form": {
+      "description": "General consent form template",
+      "fields": {
+        "patient_name": "",
+        "date_of_birth": "",
+        "procedure": "",
+        "physician": "",
+        "risks_explained": "true",
+        "questions_answered": "true",
+        "consent_given": "true",
+        "witness_name": "",
+        "date": "",
+        "patient_signature": "",
+        "physician_signature": ""
+      }
+    }
+  },
+  "field_mappings": {
+    "common_synonyms": {
+      "firstname": ["first_name", "fname", "given_name"],
+      "lastname": ["last_name", "lname", "surname", "family_name"],
+      "email": ["email_address", "email_address", "e_mail"],
+      "phone": ["telephone", "phone_number", "mobile", "cell"],
+      "address": ["street_address", "street", "mailing_address"],
+      "city": ["town", "locality"],
+      "state": ["province", "region"],
+      "zip": ["zip_code", "postal_code", "postcode"],
+      "ssn": ["social_security", "social_security_number", "tax_id"],
+      "date": ["date_signed", "signature_date", "current_date"]
+    }
+  },
+  "validation_rules": {
+    "required_fields": {
+      "job_application": ["first_name", "last_name", "email", "position"],
+      "invoice": ["invoice_number", "client_name", "total"],
+      "tax_form": ["first_name", "last_name", "social_security"],
+      "medical_history": ["patient_name", "date_of_birth"]
+    },
+    "field_formats": {
+      "email": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "phone": "^\\(?([0-9]{3})\\)?[-.\\s]?([0-9]{3})[-.\\s]?([0-9]{4})$",
+      "zip_code": "^\\d{5}(-\\d{4})?$",
+      "date": "^\\d{2}/\\d{2}/\\d{4}$|^\\d{4}-\\d{2}-\\d{2}$",
+      "currency": "^\\$?\\d+(\\.\\d{2})?$"
+    }
+  }
+}

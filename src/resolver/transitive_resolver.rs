@@ -735,15 +735,16 @@ pub async fn resolve_with_services(
         }
 
         // Fetch resource content for metadata extraction
-        let content = ResourceFetchingService::fetch_content(core, &dep, services.version_service)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to fetch resource '{}' ({}) for transitive deps",
-                    name,
-                    dep.get_path()
-                )
-            })?;
+        let content = ResourceFetchingService::fetch_content(
+            core,
+            &dep,
+            services.version_service,
+            Some(resource_type),
+        )
+        .await
+        .with_context(|| {
+            format!("Failed to fetch resource '{}' ({}) for transitive deps", name, dep.get_path())
+        })?;
 
         tracing::debug!("[TRANSITIVE] Fetched content for '{}' ({} bytes)", name, content.len());
 
@@ -754,7 +755,13 @@ pub async fn resolve_with_services(
         let variant_inputs = Some(&variant_inputs_value);
 
         // Extract metadata from the resource with complete variant_inputs
-        let path = PathBuf::from(dep.get_path());
+        let mut path = PathBuf::from(dep.get_path());
+
+        // For skills, we read SKILL.md but the metadata extractor needs the correct file path
+        if resource_type == crate::core::ResourceType::Skill {
+            path.push("SKILL.md");
+        }
+
         let metadata = MetadataExtractor::extract(
             &path,
             &content,
@@ -763,9 +770,10 @@ pub async fn resolve_with_services(
         )?;
 
         tracing::debug!(
-            "[DEBUG] Extracted metadata for '{}': has_deps={}",
+            "[DEBUG] Extracted metadata for '{}': has_deps={}, content_len={}",
             name,
-            metadata.get_dependencies().is_some()
+            metadata.get_dependencies().is_some(),
+            content.len()
         );
 
         // Process transitive dependencies if present

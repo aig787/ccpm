@@ -59,3 +59,12 @@ filesystem-oc = { source = "community", path = "mcp/filesystem.json", version = 
 
 database-cc = { source = "internal", path = "mcp/database.json", version = "v2.0.0" }
 database-oc = { source = "internal", path = "mcp/database.json", version = "v2.0.0", tool = "opencode" }
+
+[skills]
+# Skills for both tools (default to claude-code)
+rust-helper-cc = { source = "community", path = "skills/rust-helper", version = "v1.0.0" }
+ai-reviewer-cc = { source = "internal", path = "skills/ai-reviewer", version = "v2.0.0" }
+
+# OpenCode specific skills
+rust-helper-oc = { source = "community", path = "skills/rust-helper", version = "v1.0.0", tool = "opencode" }
+debugger-oc = { source = "community", path = "skills/debugger", version = "v1.5.0", tool = "opencode" }

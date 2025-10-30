@@ -516,18 +516,19 @@ pub fn resolve_merge_target_path(
 
 /// Resolves the installation path for regular file-based resources.
 ///
-/// Handles agents, commands, snippets, and scripts by:
+/// Handles agents, commands, snippets, scripts, and skills by:
 /// 1. Getting the base artifact path from tool configuration
 /// 2. Applying custom target overrides if specified
 /// 3. Computing the relative path based on flatten behavior
 /// 4. Avoiding redundant directory prefixes
+/// 5. For skills, ensuring directory paths (not file paths)
 ///
 /// # Arguments
 ///
 /// * `manifest` - The project manifest containing tool configurations
 /// * `dep` - The resource dependency specification
 /// * `artifact_type` - The tool name (e.g., "claude-code", "opencode")
-/// * `resource_type` - The resource type (Agent, Command, Snippet, Script)
+/// * `resource_type` - The resource type (Agent, Command, Snippet, Script, Skill)
 /// * `source_filename` - The filename/path from the source repository
 ///
 /// # Returns
@@ -544,35 +545,60 @@ pub fn resolve_regular_resource_path(
     resource_type: ResourceType,
     source_filename: &str,
 ) -> Result<String> {
-    // Get the artifact path for this resource type
-    let artifact_path =
-        manifest.get_artifact_resource_path(artifact_type, resource_type).ok_or_else(|| {
-            create_unsupported_resource_error(artifact_type, resource_type, dep.get_path())
-        })?;
+    // Special handling for skills - they are directories, not files
+    if resource_type == ResourceType::Skill {
+        // For skills, ensure we don't add .md extension
+        let skill_name = if let Some(stripped) = source_filename.strip_suffix(".md") {
+            stripped
+        } else {
+            source_filename
+        };
 
-    // Compute the final path
-    let path = if let Some(custom_target) = dep.get_target() {
-        compute_custom_target_path(
-            &artifact_path,
-            custom_target,
-            source_filename,
-            dep,
-            manifest,
-            artifact_type,
-            resource_type,
-        )
+        // Get the artifact path for skills
+        let artifact_path =
+            manifest.get_artifact_resource_path(artifact_type, resource_type).ok_or_else(|| {
+                create_unsupported_resource_error(artifact_type, resource_type, dep.get_path())
+            })?;
+
+        // Use the same prefix extraction logic as other resources
+        // This prevents paths like .claude/skills/skills/rust-helper
+        let flatten = get_flatten_behavior(manifest, dep, artifact_type, resource_type);
+        let relative_path =
+            compute_relative_install_path(&artifact_path.clone(), Path::new(skill_name), flatten);
+
+        let skill_path = artifact_path.join(relative_path);
+        Ok(normalize_path_for_storage(normalize_path(&skill_path)))
     } else {
-        compute_default_path(
-            &artifact_path,
-            source_filename,
-            dep,
-            manifest,
-            artifact_type,
-            resource_type,
-        )
-    };
+        // Regular file-based resources (agents, commands, snippets, scripts)
+        let artifact_path =
+            manifest.get_artifact_resource_path(artifact_type, resource_type).ok_or_else(|| {
+                create_unsupported_resource_error(artifact_type, resource_type, dep.get_path())
+            })?;
 
-    Ok(normalize_path_for_storage(normalize_path(&path)))
+        // Compute the final path
+        let path = if let Some(custom_target) = dep.get_target() {
+            compute_custom_target_path(
+                &artifact_path,
+                custom_target,
+                source_filename,
+                dep,
+                manifest,
+                artifact_type,
+                resource_type,
+            )
+        } else {
+            compute_default_path(
+                &artifact_path,
+                source_filename,
+                dep,
+                manifest,
+                artifact_type,
+                resource_type,
+            )
+        };
+
+        Ok(normalize_path_for_storage(normalize_path(&path)))
+    }
 }
 
 /// Computes the installation path when a custom target directory is specified.

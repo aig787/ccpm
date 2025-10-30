@@ -8,6 +8,7 @@
 //! - Multi-resource management
 //! - Artifact cleanup and removal
 //! - Progress display functionality
+//! - Skills installation
 
 mod basic;
 mod cleanup;
@@ -16,3 +17,4 @@ mod install_field;
 mod multi_artifact;
 mod multi_resource;
 mod progress_display;
+mod skills;

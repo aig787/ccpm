@@ -971,11 +971,13 @@ Body",
                 applied_patches: std::collections::BTreeMap::new(),
                 install: None,
                 variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+                files: None,
             }],
             snippets: vec![],
             mcp_servers: vec![],
             scripts: vec![],
             hooks: vec![],
+            skills: vec![],
         }
         .save(&lockfile_path)
         .unwrap();

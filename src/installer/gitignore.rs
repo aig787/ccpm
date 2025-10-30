@@ -1,5 +1,6 @@
 //! Gitignore management utilities for AGPM resources.
 
+use crate::core::ResourceTypeExt;
 use crate::lockfile::{LockFile, LockedResource};
 use crate::utils::fs::atomic_write;
 use crate::utils::normalize_path_for_storage;
@@ -224,12 +225,22 @@ pub fn update_gitignore(lockfile: &LockFile, project_dir: &Path, enabled: bool) 
         }
     };
 
-    // Collect paths from all resource types
+    // Collect paths from all resource types using the resource iterator
     // Skip hooks and MCP servers - they are configured only, not installed as files
-    add_resource_paths(&lockfile.agents);
-    add_resource_paths(&lockfile.snippets);
-    add_resource_paths(&lockfile.commands);
-    add_resource_paths(&lockfile.scripts);
+    use crate::core::ResourceType;
+    for resource_type in ResourceType::all() {
+        match resource_type {
+            ResourceType::Hook | ResourceType::McpServer => {
+                // Skip these types as they don't install files to disk
+                continue;
+            }
+            _ => {
+                // Add paths from all other resource types (agents, snippets, commands, scripts, skills)
+                let resources = resource_type.get_lockfile_entries(lockfile);
+                add_resource_paths(resources);
+            }
+        }
+    }
 
     // Read existing gitignore if it exists
     let mut before_agpm_section = Vec::new();

@@ -36,6 +36,7 @@ impl ResourceFetchingService {
     /// * `core` - The resolution core with manifest and cache
     /// * `dep` - The resource dependency to fetch
     /// * `version_service` - Version service to get/prepare worktree paths
+    /// * `resource_type` - The type of resource (optional, used for special handling like skills)
     ///
     /// # Returns
     ///
@@ -44,6 +45,7 @@ impl ResourceFetchingService {
         core: &ResolutionCore,
         dep: &ResourceDependency,
         version_service: &mut VersionResolutionService,
+        resource_type: Option<crate::core::ResourceType>,
     ) -> Result<String> {
         match dep {
             ResourceDependency::Simple(path) => {
@@ -88,7 +90,24 @@ impl ResourceFetchingService {
 
                     let prepared = version_service.get_prepared_version(&group_key).unwrap();
                     let worktree_path = &prepared.worktree_path;
-                    let file_path = worktree_path.join(&detailed.path);
+
+                    // For skills, the path points to a directory, but we need to read SKILL.md
+                    let file_path = if resource_type == Some(crate::core::ResourceType::Skill) {
+                        let skill_dir = worktree_path.join(&detailed.path);
+                        let skill_md = skill_dir.join("SKILL.md");
+
+                        // Check if SKILL.md exists
+                        if !skill_md.exists() {
+                            return Err(anyhow::anyhow!(
+                                "Skill at {} missing required SKILL.md file",
+                                skill_dir.display()
+                            ));
+                        }
+
+                        skill_md
+                    } else {
+                        worktree_path.join(&detailed.path)
+                    };
 
                     // Don't canonicalize Git-backed files - worktrees may have coherency delays
                     Self::read_with_cache_retry(&file_path).await
@@ -100,20 +119,30 @@ impl ResourceFetchingService {
                         .as_ref()
                         .context("Manifest directory not available")?;
 
-                    let full_path = manifest_dir.join(&detailed.path);
-                    let canonical_path = full_path.canonicalize().map_err(|e| {
-                        // Create a FileOperationError for canonicalization failures
-                        let file_error = crate::core::file_error::FileOperationError::new(
-                            crate::core::file_error::FileOperationContext::new(
-                                crate::core::file_error::FileOperation::Canonicalize,
-                                &full_path,
-                                format!("resolving local dependency path: {}", detailed.path),
-                                "resource_service::fetch_content",
-                            ),
-                            e,
-                        );
-                        anyhow::Error::from(file_error)
-                    })?;
+                    // For skills, the path points to a directory, but we need to read SKILL.md
+                    let full_path = if resource_type == Some(crate::core::ResourceType::Skill) {
+                        let skill_dir = manifest_dir.join(&detailed.path);
+                        let skill_md = skill_dir.join("SKILL.md");
+
+                        // Check if SKILL.md exists
+                        if !skill_md.exists() {
+                            return Err(anyhow::anyhow!(
+                                "Skill at {} missing required SKILL.md file",
+                                skill_dir.display()
+                            ));
+                        }
+
+                        skill_md
+                    } else {
+                        manifest_dir.join(&detailed.path)
+                    };
+
+                    let canonical_path = full_path.canonicalize().with_file_context(
+                        FileOperation::Canonicalize,
+                        &full_path,
+                        format!("resolving local dependency path: {}", detailed.path),
+                        "resource_service",
+                    )?;
 
                     Self::read_with_cache_retry(&canonical_path).await
                 }
@@ -220,8 +249,37 @@ impl ResourceFetchingService {
     /// Read file with retry logic for cache coherency issues.
     ///
     /// Git worktrees can have filesystem coherency delays after creation.
-    /// This method retries up to 10 times with 100ms delays between attempts.
+    /// For skill directories, reads the SKILL.md file instead of the directory.
     async fn read_with_cache_retry(path: &Path) -> Result<String> {
+        // Check if this is a skill directory
+        if path.is_dir() {
+            let skill_md_path = path.join("SKILL.md");
+            if !skill_md_path.exists() {
+                anyhow::bail!(
+                    "Skill directory missing required SKILL.md file: {} (expected at: {})",
+                    path.display(),
+                    skill_md_path.display()
+                );
+            }
+            tracing::debug!("Reading skill directory {} via SKILL.md file", path.display());
+            let content = Self::read_file_with_retry(&skill_md_path).await?;
+
+            // Validate skill frontmatter to provide early error detection
+            crate::skills::validate_skill_frontmatter(&content).with_context(|| {
+                format!("Invalid skill frontmatter in: {}", skill_md_path.display())
+            })?;
+
+            return Ok(content);
+        }
+
+        Self::read_file_with_retry(path).await
+    }
+
+    /// Read file with retry logic for cache coherency issues.
+    ///
+    /// This is the actual retry implementation without directory handling
+    /// to avoid recursion.
+    async fn read_file_with_retry(path: &Path) -> Result<String> {
         use tokio::time::{Duration, sleep};
 
         const MAX_ATTEMPTS: u32 = 10;

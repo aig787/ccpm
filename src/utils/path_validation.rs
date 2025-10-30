@@ -145,6 +145,103 @@ pub fn ensure_directory_exists(dir: &Path) -> Result<PathBuf> {
     safe_canonicalize(dir)
 }
 
+/// Validates a skill installation path to prevent directory traversal.
+///
+/// # Arguments
+/// * `installed_at` - The custom installation path from lockfile
+/// * `skill_name` - The name of the skill being installed
+/// * `project_dir` - The project directory
+///
+/// # Returns
+/// The validated and normalized installation path
+///
+/// # Errors
+/// Returns an error if:
+/// - The path contains parent directory references (..)
+/// - The path attempts to escape the project directory
+/// - The path contains invalid characters
+pub fn validate_skill_installation_path(
+    installed_at: &str,
+    skill_name: &str,
+    project_dir: &Path,
+) -> Result<PathBuf> {
+    // First validate no traversal attempts in the custom path
+    let path = Path::new(installed_at);
+    validate_no_traversal(path)?;
+
+    // Sanitize the skill name to prevent injection
+    let safe_skill_name = sanitize_file_name(skill_name);
+    if safe_skill_name.is_empty() {
+        return Err(anyhow!("Invalid skill name: '{}'", skill_name));
+    }
+
+    // Build the full installation path
+    let full_path = if path.is_absolute() {
+        // Absolute paths are not allowed for skill installation
+        return Err(anyhow!(
+            "Skill installation path must be relative to project directory: '{}'",
+            installed_at
+        ));
+    } else if installed_at.is_empty() {
+        // Default path: .claude/skills/{skill_name}/
+        project_dir.join(".claude").join("skills").join(&safe_skill_name)
+    } else {
+        // Custom path: ensure it's within project and ends with skill name
+        let custom_path = project_dir.join(installed_at);
+
+        // If the custom path doesn't already end with the skill name, append it
+        let final_path = if custom_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n != safe_skill_name)
+            .unwrap_or(true)
+        {
+            custom_path.join(&safe_skill_name)
+        } else {
+            custom_path
+        };
+
+        // Ensure the final path is within the project directory
+        if let Some(parent) = final_path.parent() {
+            if parent.exists() {
+                let canonical_parent = safe_canonicalize(parent)?;
+                let canonical_project = safe_canonicalize(project_dir)?;
+
+                if !canonical_parent.starts_with(&canonical_project) {
+                    return Err(anyhow!(
+                        "Skill installation path '{}' escapes project directory",
+                        installed_at
+                    ));
+                }
+            }
+        }
+
+        final_path
+    };
+
+    // Additional validation: ensure we're not installing to sensitive locations
+    let path_str = full_path.to_string_lossy();
+    let sensitive_patterns = [
+        ".git/",
+        ".agpm/",
+        "node_modules/",
+        "target/",
+        ".claude/settings.local.json",
+        ".claude/settings.json",
+    ];
+
+    for pattern in &sensitive_patterns {
+        if path_str.contains(pattern) {
+            return Err(anyhow!(
+                "Cannot install skill to sensitive location: '{}'",
+                full_path.display()
+            ));
+        }
+    }
+
+    Ok(full_path)
+}
+
 /// Validates and normalizes a file path for a specific resource type.
 ///
 /// # Arguments
@@ -364,6 +461,58 @@ mod tests {
         let traversal = Path::new("../outside/agent.md");
         let result = validate_resource_path(traversal, "agent", project_dir);
         assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate_skill_installation_path() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let project_dir = temp_dir.path();
+
+        // Default path (empty installed_at)
+        let result = validate_skill_installation_path("", "my-skill", project_dir)?;
+        let expected = project_dir.join(".claude").join("skills").join("my-skill");
+        assert_eq!(result, expected);
+
+        // Valid custom path
+        let result =
+            validate_skill_installation_path(".claude/custom-skills", "my-skill", project_dir)?;
+        let expected = project_dir.join(".claude").join("custom-skills").join("my-skill");
+        assert_eq!(result, expected);
+
+        // Custom path already ending with skill name
+        let result =
+            validate_skill_installation_path(".claude/skills/my-skill", "my-skill", project_dir)?;
+        let expected = project_dir.join(".claude").join("skills").join("my-skill");
+        assert_eq!(result, expected);
+
+        // Path with traversal should fail
+        let result = validate_skill_installation_path("../outside/skills", "my-skill", project_dir);
+        assert!(result.is_err());
+
+        // Absolute path should fail
+        #[cfg(windows)]
+        let result = validate_skill_installation_path("C:\\absolute\\path", "my-skill", project_dir);
+        #[cfg(not(windows))]
+        let result = validate_skill_installation_path("/absolute/path", "my-skill", project_dir);
+        assert!(result.is_err());
+
+        // Sensitive locations should fail
+        let result = validate_skill_installation_path(".git/skills", "my-skill", project_dir);
+        assert!(result.is_err());
+
+        let result = validate_skill_installation_path(
+            ".claude/settings.local.json",
+            "my-skill",
+            project_dir,
+        );
+        assert!(result.is_err());
+
+        // Invalid skill name should be sanitized
+        let result = validate_skill_installation_path("", "my/invalid\\skill", project_dir)?;
+        let expected = project_dir.join(".claude").join("skills").join("myinvalidskill");
+        assert_eq!(result, expected);
 
         Ok(())
     }

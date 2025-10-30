@@ -623,6 +623,7 @@ mod tests {
             mcp_servers: HashMap::new(),
             scripts: HashMap::new(),
             hooks: HashMap::new(),
+            skills: HashMap::new(),
             patches: crate::manifest::patches::ManifestPatches::default(),
             project_patches: crate::manifest::patches::ManifestPatches::default(),
             private_patches: crate::manifest::patches::ManifestPatches::default(),
@@ -660,11 +661,13 @@ mod tests {
                 applied_patches: std::collections::BTreeMap::new(),
                 install: None,
                 variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+                files: None,
             }],
             snippets: vec![],
             mcp_servers: vec![],
             scripts: vec![],
             hooks: vec![],
+            skills: vec![],
         }
     }
 

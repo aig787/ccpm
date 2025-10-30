@@ -153,6 +153,10 @@ pub struct TreeCommand {
     #[arg(long, name = "mcp-servers")]
     mcp_servers: bool,
 
+    /// Show only skills
+    #[arg(long)]
+    skills: bool,
+
     /// Invert tree to show what depends on each package
     ///
     /// Instead of showing what each package depends on, shows what depends
@@ -302,6 +306,7 @@ impl TreeCommand {
             ResourceType::Script => self.scripts,
             ResourceType::Hook => self.hooks,
             ResourceType::McpServer => self.mcp_servers,
+            ResourceType::Skill => self.skills,
         }
     }
 
@@ -1036,6 +1041,7 @@ mod tests {
             scripts: false,
             hooks: false,
             mcp_servers: false,
+            skills: false,
             invert: false,
             detailed: false,
         }

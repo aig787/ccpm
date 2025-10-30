@@ -227,9 +227,18 @@ pub async fn cleanup_removed_artifacts(
 
             // Only remove if the file actually exists
             if full_path.exists() {
-                tokio::fs::remove_file(&full_path).await.with_context(|| {
-                    format!("Failed to remove old artifact: {}", full_path.display())
-                })?;
+                // Skills are directories, all other resources are files
+                if old_resource.resource_type == crate::core::ResourceType::Skill {
+                    // Remove skill directory recursively
+                    tokio::fs::remove_dir_all(&full_path).await.with_context(|| {
+                        format!("Failed to remove old skill directory: {}", full_path.display())
+                    })?;
+                } else {
+                    // Remove single file for other resource types
+                    tokio::fs::remove_file(&full_path).await.with_context(|| {
+                        format!("Failed to remove old artifact: {}", full_path.display())
+                    })?;
+                }
 
                 removed.push(old_resource.installed_at.clone());
 
@@ -454,8 +463,14 @@ async fn cleanup_empty_dirs(file_path: &std::path::Path) -> Result<()> {
     let mut current = file_path.parent();
 
     while let Some(dir) = current {
-        // Stop if we've reached .claude or the project root
-        if dir.ends_with(".claude") || dir.parent().is_none() {
+        // Stop at .claude directory (check file name, not path suffix)
+        // This prevents incorrectly matching paths like .claude/skills/my-skill/.claude/test
+        if dir.file_name().and_then(|n| n.to_str()) == Some(".claude") {
+            break;
+        }
+
+        // Stop at project root
+        if dir.parent().is_none() {
             break;
         }
 

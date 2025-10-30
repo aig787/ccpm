@@ -69,6 +69,7 @@ pub struct ManifestBuilder {
     scripts: Vec<DependencyEntry>,
     hooks: Vec<DependencyEntry>,
     mcp_servers: Vec<DependencyEntry>,
+    skills: Vec<DependencyEntry>, // NEW: Support for skills
 }
 
 /// Configuration for the [target] section
@@ -80,6 +81,7 @@ struct TargetConfig {
     scripts: Option<String>,
     hooks: Option<String>,
     mcp_servers: Option<String>,
+    skills: Option<String>, // NEW: Support for skills
     gitignore: Option<bool>,
 }
 
@@ -169,6 +171,12 @@ impl ToolConfigBuilder {
         self
     }
 
+    /// Configure skills resource
+    pub fn skills(mut self, config: ResourceConfigBuilder) -> Self {
+        self.resources.insert("skills".to_string(), config.build());
+        self
+    }
+
     fn build(self) -> ToolConfig {
         ToolConfig {
             path: self.path,
@@ -247,6 +255,7 @@ pub struct TargetConfigBuilder {
     scripts: Option<String>,
     hooks: Option<String>,
     mcp_servers: Option<String>,
+    skills: Option<String>, // NEW: Support for skills
     gitignore: Option<bool>,
 }
 
@@ -287,6 +296,12 @@ impl TargetConfigBuilder {
         self
     }
 
+    /// Set the skills target path
+    pub fn skills(mut self, path: &str) -> Self {
+        self.skills = Some(path.to_string());
+        self
+    }
+
     /// Enable or disable gitignore management
     pub fn gitignore(mut self, enabled: bool) -> Self {
         self.gitignore = Some(enabled);
@@ -301,6 +316,7 @@ impl TargetConfigBuilder {
             scripts: self.scripts,
             hooks: self.hooks,
             mcp_servers: self.mcp_servers,
+            skills: self.skills,
             gitignore: self.gitignore,
         }
     }
@@ -492,6 +508,7 @@ impl ManifestBuilder {
                 scripts: None,
                 hooks: None,
                 mcp_servers: None,
+                skills: None,
                 gitignore: Some(enabled),
             });
         }
@@ -633,6 +650,36 @@ impl ManifestBuilder {
         self
     }
 
+    /// Add a skill dependency with full configuration
+    ///
+    /// # Example
+    /// ```rust
+    /// builder.add_skill("my-skill", |d| d
+    ///     .source("official")
+    ///     .path("skills/my-skill")
+    ///     .version("v1.0.0")
+    /// )
+    /// ```
+    pub fn add_skill<F>(mut self, name: &str, config: F) -> Self
+    where
+        F: FnOnce(DependencyBuilder) -> DependencyBuilder,
+    {
+        let builder = DependencyBuilder {
+            name: name.to_string(),
+            source: None,
+            path: None,
+            version: None,
+            branch: None,
+            rev: None,
+            tool: None,
+            target: None,
+            flatten: None,
+        };
+        let entry = config(builder).build();
+        self.skills.push(entry);
+        self
+    }
+
     /// Build the final TOML string
     ///
     /// Constructs a valid agpm.toml manifest from the builder state.
@@ -703,6 +750,7 @@ impl ManifestBuilder {
         format_dependencies(&mut toml, "scripts", &self.scripts);
         format_dependencies(&mut toml, "hooks", &self.hooks);
         format_dependencies(&mut toml, "mcp-servers", &self.mcp_servers);
+        format_dependencies(&mut toml, "skills", &self.skills);
 
         // Tools configuration section
         if let Some(config) = self.tools_config {
@@ -790,6 +838,10 @@ impl ManifestBuilder {
             if let Some(path) = config.mcp_servers {
                 target_section
                     .push_str(&format!("mcp-servers = \"{}\"\n", escape_toml_string(&path)));
+                has_fields = true;
+            }
+            if let Some(path) = config.skills {
+                target_section.push_str(&format!("skills = \"{}\"\n", escape_toml_string(&path)));
                 has_fields = true;
             }
             if let Some(enabled) = config.gitignore {
@@ -889,6 +941,7 @@ impl ManifestBuilder {
                             .merge_target(".claude/settings.local.json"),
                     )
                     .mcp_servers(ResourceConfigBuilder::default().merge_target(".mcp.json"))
+                    .skills(ResourceConfigBuilder::default().path("skills"))
             })
         })
     }

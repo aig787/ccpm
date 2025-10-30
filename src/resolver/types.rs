@@ -428,8 +428,9 @@ pub fn strip_resource_type_directory(path: &str) -> Option<String> {
     let components: Vec<&str> = path.split('/').collect();
     if components.len() > 1 {
         // Resource type directories
-        let resource_type_dirs =
-            ["agents", "snippets", "commands", "scripts", "hooks", "mcp-servers"];
+        use crate::core::ResourceType;
+        let resource_type_dirs: Vec<&str> =
+            ResourceType::all().iter().map(|rt| rt.to_plural()).collect();
 
         // Find the index of the first resource type directory
         if let Some(idx) = components.iter().position(|c| resource_type_dirs.contains(c)) {

@@ -575,6 +575,7 @@ mod tests {
             dependencies: vec![],
             applied_patches: std::collections::BTreeMap::new(),
             install: Some(true),
+            files: None, // Test resources are single files
         }
     }
 

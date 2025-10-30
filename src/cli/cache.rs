@@ -971,6 +971,7 @@ mod tests {
             mcp_servers: vec![],
             scripts: vec![],
             hooks: vec![],
+            skills: vec![],
         };
         lockfile.save(&work_dir.path().join("agpm.lock")).unwrap();
 

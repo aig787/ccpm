@@ -545,7 +545,7 @@ Common deployment setup.
   "dependencies": {
     "commands": [
       {
-        "path": "commands/base.md",
+        "path": "base.md",
         "version": "v1.0.0"
       }
     ]

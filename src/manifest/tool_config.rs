@@ -344,6 +344,14 @@ impl Default for ToolsConfig {
                 flatten: None, // N/A for merge targets
             },
         );
+        claude_resources.insert(
+            ResourceType::Skill.to_plural().to_string(),
+            ResourceConfig {
+                path: Some("skills".to_string()),
+                merge_target: None,
+                flatten: Some(true), // Skills flatten by default
+            },
+        );
 
         types.insert(
             "claude-code".to_string(),

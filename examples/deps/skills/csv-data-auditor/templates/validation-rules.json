@@ -1,0 +1,58 @@
+{
+  "business_rules": {
+    "age_range": {
+      "column": "age",
+      "type": "range",
+      "min": 0,
+      "max": 150,
+      "description": "Age must be between 0 and 150"
+    },
+    "email_format": {
+      "column": "email",
+      "type": "pattern",
+      "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "description": "Email must be valid format"
+    },
+    "status_values": {
+      "column": "status",
+      "type": "allowed_values",
+      "values": ["active", "inactive", "pending", "suspended"],
+      "description": "Status must be one of the allowed values"
+    },
+    "salary_positive": {
+      "column": "salary",
+      "type": "range",
+      "min": 0,
+      "max": 10000000,
+      "description": "Salary must be positive and reasonable"
+    },
+    "phone_format": {
+      "column": "phone",
+      "type": "pattern",
+      "pattern": "^\\+?[1-9]\\d{1,14}$|^\\(?[1-9]\\d{2}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}$",
+      "description": "Phone number must be in valid format"
+    },
+    "date_not_future": {
+      "column": "birth_date",
+      "type": "custom",
+      "description": "Birth date should not be in the future"
+    },
+    "postal_code_format": {
+      "column": "postal_code",
+      "type": "pattern",
+      "pattern": "^\\d{5}(-\\d{4})?$|^[A-Za-z]\\d[A-Za-z] \\d[A-Za-z]\\d$",
+      "description": "Postal code must be US (12345 or 12345-6789) or Canadian (A1A 1A1) format"
+    }
+  },
+  "data_quality_thresholds": {
+    "missing_value_threshold": 20,
+    "duplicate_threshold": 5,
+    "outlier_threshold": 5
+  },
+  "column_requirements": {
+    "required_columns": ["id", "email", "name"],
+    "id_columns": ["id", "user_id", "customer_id"],
+    "date_columns": ["created_at", "updated_at", "birth_date", "join_date"],
+    "numeric_columns": ["age", "salary", "price", "quantity", "amount"]
+  }
+}

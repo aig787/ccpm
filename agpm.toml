@@ -1,6 +1,7 @@
 [tools.claude-code]
 path = ".claude"
-resources = { commands = { path = "commands", flatten = true } }
+# Note: hooks and mcp-servers merge into configuration files (no file installation)
+resources = { agents = { path = "agents", flatten = true }, commands = { path = "commands", flatten = true }, hooks = { merge-target = ".claude/settings.local.json" }, mcp-servers = { merge-target = ".mcp.json" }, scripts = { path = "scripts", flatten = false }, snippets = { path = "snippets", flatten = false }, skills = { path = "skills", flatten = true } }
 
 [commands]
 checkpoint = { path = "local-deps/claude/commands/checkpoint.md" }
@@ -40,3 +41,7 @@ agpm-update = { path = "local-deps/claude/hooks/agpm-update.json" }
 # Add your MCP server dependencies here
 # Example: filesystem = { source = "official", path = "mcp-servers/filesystem.json" }
 [mcp-servers]
+
+# Add your skill dependencies here
+# Example: my-skill = { source = "official", path = "skills/my-skill", version = "v1.0.0" }
+[skills]

@@ -200,7 +200,7 @@ https://github.com/aig787/agpm#transitive-dependencies",
     /// * `Err` with helpful error message if tool names detected
     fn validate_resource_types(metadata: &DependencyMetadata, file_path: &Path) -> Result<()> {
         const VALID_RESOURCE_TYPES: &[&str] =
-            &["agents", "commands", "snippets", "hooks", "mcp-servers", "scripts"];
+            &["agents", "commands", "snippets", "hooks", "mcp-servers", "scripts", "skills"];
         const TOOL_NAMES: &[&str] = &["claude-code", "opencode", "agpm"];
 
         // Check both root-level and nested dependencies
@@ -804,6 +804,8 @@ dependencies:
     - path: snippets/util.md
   commands:
     - path: commands/deploy.md
+  skills:
+    - path: skills/my-skill
 ---
 # Command"#;
 
@@ -852,5 +854,75 @@ dependencies:
         // Both should deduplicate independently
         assert!(!ctx1.should_warn_file(&path));
         assert!(!ctx2.should_warn_file(&path));
+    }
+
+    #[test]
+    fn test_extract_skill_dependencies() {
+        let content = r#"---
+dependencies:
+  agents:
+    - path: agents/rust-expert.md
+      version: "^1.0.0"
+  snippets:
+    - path: snippets/rust-patterns.md
+  skills:
+    - path: skills/code-formatter
+      version: v2.0.0
+    - path: skills/documentation-helper
+---
+
+# My Skill
+
+This skill helps with Rust development.
+"#;
+
+        let path = Path::new("SKILL.md");
+        let metadata = MetadataExtractor::extract(path, content, None, None).unwrap();
+
+        assert!(metadata.has_dependencies());
+        let deps = metadata.dependencies.unwrap();
+
+        // Check agents
+        assert_eq!(deps["agents"].len(), 1);
+        assert_eq!(deps["agents"][0].path, "agents/rust-expert.md");
+        assert_eq!(deps["agents"][0].version, Some("^1.0.0".to_string()));
+
+        // Check snippets
+        assert_eq!(deps["snippets"].len(), 1);
+        assert_eq!(deps["snippets"][0].path, "snippets/rust-patterns.md");
+
+        // Check skills
+        assert_eq!(deps["skills"].len(), 2);
+        assert_eq!(deps["skills"][0].path, "skills/code-formatter");
+        assert_eq!(deps["skills"][0].version, Some("v2.0.0".to_string()));
+        assert_eq!(deps["skills"][1].path, "skills/documentation-helper");
+    }
+
+    #[test]
+    fn test_extract_skill_dependencies_with_tool_specification() {
+        let content = r#"---
+dependencies:
+  skills:
+    - path: skills/opencode-formatter
+      tool: opencode
+      version: v1.5.0
+    - path: skills/claude-analyzer
+      tool: claude-code
+---
+
+# Multi-Tool Skill
+"#;
+
+        let path = Path::new("SKILL.md");
+        let metadata = MetadataExtractor::extract(path, content, None, None).unwrap();
+
+        assert!(metadata.has_dependencies());
+        let deps = metadata.dependencies.unwrap();
+
+        assert_eq!(deps["skills"].len(), 2);
+        assert_eq!(deps["skills"][0].path, "skills/opencode-formatter");
+        assert_eq!(deps["skills"][0].tool, Some("opencode".to_string()));
+        assert_eq!(deps["skills"][1].path, "skills/claude-analyzer");
+        assert_eq!(deps["skills"][1].tool, Some("claude-code".to_string()));
     }
 }

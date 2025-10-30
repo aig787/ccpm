@@ -512,8 +512,7 @@ impl ValidateCommand {
         }
 
         // Check for empty manifest warnings
-        let total_deps = manifest.agents.len() + manifest.snippets.len();
-        if total_deps == 0 {
+        if manifest.total_dependencies() == 0 {
             warnings.push("No dependencies defined in manifest".to_string());
             if !self.quiet && matches!(self.format, OutputFormat::Text) {
                 println!("⚠ Warning: No dependencies defined");
@@ -1586,6 +1585,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&temp.path().join("agpm.lock")).unwrap();
 
@@ -1899,11 +1899,13 @@ mod tests {
                 applied_patches: std::collections::BTreeMap::new(),
                 install: None,
                 variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+                files: None,
             }],
             snippets: vec![],
             mcp_servers: vec![],
             scripts: vec![],
             hooks: vec![],
+            skills: vec![],
         };
         lockfile.save(&temp.path().join("agpm.lock")).unwrap();
 
@@ -2934,6 +2936,7 @@ another-agent = { source = "test", path = "agent.md", version = "v2.0.0" }
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -3436,6 +3439,7 @@ another-agent = { source = "test", path = "agent.md", version = "v2.0.0" }
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -3640,6 +3644,7 @@ another-agent = { source = "test", path = "agent.md", version = "v2.0.0" }
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -3814,6 +3819,7 @@ See [helper](.agpm/snippets/helper.md) for details.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -3882,6 +3888,7 @@ Also check `.claude/nonexistent.md`.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -3952,6 +3959,7 @@ Visit http://example.com for more info.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -4024,6 +4032,7 @@ Inline code `example.md` should also be ignored.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 
@@ -4095,6 +4104,7 @@ Inline code `example.md` should also be ignored.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.commands.push(LockedResource {
             name: "cmd1".to_string(),
@@ -4113,6 +4123,7 @@ Inline code `example.md` should also be ignored.
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 

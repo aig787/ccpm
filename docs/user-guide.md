@@ -49,6 +49,9 @@ example = { source = "community", path = "agents/example.md", version = "v1.0.0"
 
 [snippets]
 utils = { source = "community", path = "snippets/utils.md", version = "^1.0.0" }
+
+[skills]
+rust-helper = { source = "community", path = "skills/rust-helper", version = "v1.0.0" }
 ```
 
 See the [Manifest Reference](manifest-reference.md) for complete schema documentation or check out [examples](examples/) for more configurations.

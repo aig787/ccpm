@@ -105,6 +105,12 @@ enum RemoveDependencySubcommand {
         /// Name of the hook to remove
         name: String,
     },
+
+    /// Remove a skill dependency
+    Skill {
+        /// Name of the skill to remove
+        name: String,
+    },
 }
 
 /// Helper function to get dependencies for a specific resource type
@@ -119,6 +125,7 @@ const fn get_dependencies_for_type(
         ResourceType::McpServer => &manifest.mcp_servers,
         ResourceType::Script => &manifest.scripts,
         ResourceType::Hook => &manifest.hooks,
+        ResourceType::Skill => &manifest.skills,
     }
 }
 
@@ -134,6 +141,7 @@ const fn get_dependencies_for_type_mut(
         ResourceType::McpServer => &mut manifest.mcp_servers,
         ResourceType::Script => &mut manifest.scripts,
         ResourceType::Hook => &mut manifest.hooks,
+        ResourceType::Skill => &mut manifest.skills,
     }
 }
 
@@ -145,50 +153,19 @@ fn get_installed_path_from_lockfile(
     project_root: &std::path::Path,
     _manifest: &Manifest,
 ) -> Option<std::path::PathBuf> {
-    match resource_type {
-        ResourceType::Agent => lockfile
-            .agents
-            .iter()
-            .find(|a| a.lookup_name() == name)
-            .map(|a| project_root.join(&a.installed_at)),
-        ResourceType::Snippet => lockfile
-            .snippets
-            .iter()
-            .find(|s| s.lookup_name() == name)
-            .map(|s| project_root.join(&s.installed_at)),
-        ResourceType::Command => lockfile
-            .commands
-            .iter()
-            .find(|c| c.lookup_name() == name)
-            .map(|c| project_root.join(&c.installed_at)),
-        ResourceType::McpServer => lockfile
-            .mcp_servers
-            .iter()
-            .find(|m| m.lookup_name() == name)
-            .map(|m| project_root.join(&m.installed_at)),
-        ResourceType::Script => lockfile
-            .scripts
-            .iter()
-            .find(|s| s.lookup_name() == name)
-            .map(|s| project_root.join(&s.installed_at)),
-        ResourceType::Hook => lockfile
-            .hooks
-            .iter()
-            .find(|h| h.lookup_name() == name)
-            .map(|h| project_root.join(&h.installed_at)),
-    }
+    // Use lockfile's get_resources method to find the resource by lookup_name
+    lockfile
+        .get_resources(&resource_type)
+        .iter()
+        .find(|r| r.lookup_name() == name)
+        .map(|r| project_root.join(&r.installed_at))
 }
 
 /// Helper function to remove a resource from lockfile
 fn remove_from_lockfile(lockfile: &mut LockFile, name: &str, resource_type: ResourceType) {
-    match resource_type {
-        ResourceType::Agent => lockfile.agents.retain(|a| a.lookup_name() != name),
-        ResourceType::Snippet => lockfile.snippets.retain(|s| s.lookup_name() != name),
-        ResourceType::Command => lockfile.commands.retain(|c| c.lookup_name() != name),
-        ResourceType::McpServer => lockfile.mcp_servers.retain(|m| m.lookup_name() != name),
-        ResourceType::Script => lockfile.scripts.retain(|s| s.lookup_name() != name),
-        ResourceType::Hook => lockfile.hooks.retain(|h| h.lookup_name() != name),
-    }
+    // Use lockfile's get_resources_mut method to get mutable reference and retain by lookup_name
+    let resources = lockfile.get_resources_mut(&resource_type);
+    resources.retain(|r| r.lookup_name() != name);
 }
 
 impl RemoveCommand {
@@ -247,6 +224,9 @@ impl RemoveCommand {
                 RemoveDependencySubcommand::Hook {
                     name,
                 } => remove_dependency_with_manifest_path(&name, "hook", manifest_path).await,
+                RemoveDependencySubcommand::Skill {
+                    name,
+                } => remove_dependency_with_manifest_path(&name, "skill", manifest_path).await,
             },
         }
     }
@@ -483,9 +463,18 @@ async fn remove_dependency_with_manifest_path(
         if let Some(path) = installed_path
             && path.exists()
         {
-            tokio::fs::remove_file(&path)
-                .await
-                .with_context(|| format!("Failed to remove installed file: {}", path.display()))?;
+            // Skills are directories, all other resources are files
+            if resource_type == ResourceType::Skill {
+                // Remove skill directory recursively
+                tokio::fs::remove_dir_all(&path).await.with_context(|| {
+                    format!("Failed to remove skill directory: {}", path.display())
+                })?;
+            } else {
+                // Remove single file for other resource types
+                tokio::fs::remove_file(&path).await.with_context(|| {
+                    format!("Failed to remove installed file: {}", path.display())
+                })?;
+            }
         }
 
         // Remove the dependency from the appropriate section
@@ -516,6 +505,9 @@ async fn remove_dependency_with_manifest_path(
                 }
                 ResourceType::Hook => {
                     private_lock.hooks.retain(|r| r.name != name);
+                }
+                ResourceType::Skill => {
+                    private_lock.skills.retain(|r| r.name != name);
                 }
             }
             // Save (will delete if empty)
@@ -929,6 +921,7 @@ test-agent = "../test/agent.md"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
         // Remove an agent (should update lockfile)
@@ -1071,6 +1064,7 @@ test-snippet = { source = "test-source", path = "snippets/test.md", version = "v
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
 
         // Add snippet with installed path (relative to project directory)
@@ -1092,6 +1086,7 @@ test-snippet = { source = "test-source", path = "snippets/test.md", version = "v
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
 
         lockfile.save(&lockfile_path).unwrap();
@@ -1183,6 +1178,7 @@ test-hook = "../test/hook.json"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.hooks.push(LockedResource {
             name: "test-hook".to_string(),
@@ -1202,6 +1198,7 @@ test-hook = "../test/hook.json"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
         // Remove script
@@ -1278,6 +1275,7 @@ test-snippet = "../local/snippet.md"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.snippets.push(LockedResource {
             name: "test-snippet".to_string(),
@@ -1297,6 +1295,7 @@ test-snippet = "../local/snippet.md"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
         // Remove a snippet
@@ -1482,6 +1481,7 @@ test-script = "../test/script.sh"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
         lockfile.save(&lockfile_path).unwrap();
 

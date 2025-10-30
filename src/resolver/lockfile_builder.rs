@@ -308,6 +308,8 @@ impl<'a> LockfileBuilder<'a> {
             self.manifest.hooks.keys().map(|k| k.to_string()).collect();
         let manifest_mcp_servers: HashSet<String> =
             self.manifest.mcp_servers.keys().map(|k| k.to_string()).collect();
+        let manifest_skills: HashSet<String> =
+            self.manifest.skills.keys().map(|k| k.to_string()).collect();
 
         // Helper to get the right manifest keys for a resource type
         let get_manifest_keys = |resource_type: ResourceType| match resource_type {
@@ -317,6 +319,7 @@ impl<'a> LockfileBuilder<'a> {
             ResourceType::Script => &manifest_scripts,
             ResourceType::Hook => &manifest_hooks,
             ResourceType::McpServer => &manifest_mcp_servers,
+            ResourceType::Skill => &manifest_skills,
         };
 
         // Collect (name, source) pairs to remove
@@ -644,6 +647,7 @@ pub(super) fn get_patches_for_resource(
         ResourceType::Script => &manifest.patches.scripts,
         ResourceType::Hook => &manifest.patches.hooks,
         ResourceType::McpServer => &manifest.patches.mcp_servers,
+        ResourceType::Skill => &manifest.patches.skills,
     };
 
     patches.get(lookup_name).cloned().unwrap_or_default()
@@ -860,6 +864,7 @@ pub(super) fn remove_stale_manifest_entries(manifest: &Manifest, lockfile: &mut 
     let manifest_hooks: HashSet<String> = manifest.hooks.keys().map(|k| k.to_string()).collect();
     let manifest_mcp_servers: HashSet<String> =
         manifest.mcp_servers.keys().map(|k| k.to_string()).collect();
+    let manifest_skills: HashSet<String> = manifest.skills.keys().map(|k| k.to_string()).collect();
 
     // Helper to get the right manifest keys for a resource type
     let get_manifest_keys = |resource_type: ResourceType| match resource_type {
@@ -869,6 +874,7 @@ pub(super) fn remove_stale_manifest_entries(manifest: &Manifest, lockfile: &mut 
         ResourceType::Script => &manifest_scripts,
         ResourceType::Hook => &manifest_hooks,
         ResourceType::McpServer => &manifest_mcp_servers,
+        ResourceType::Skill => &manifest_skills,
     };
 
     // Collect (name, source) pairs to remove
@@ -1281,6 +1287,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
 
         lockfile.snippets.push(LockedResource {
@@ -1300,6 +1307,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         });
 
         lockfile
@@ -1328,6 +1336,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         };
 
         builder.add_or_update_lockfile_entry(&mut lockfile, "new-agent", entry);
@@ -1359,6 +1368,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         };
 
         builder.add_or_update_lockfile_entry(&mut lockfile, "test-agent", updated_entry);
@@ -1425,6 +1435,7 @@ mod tests {
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: crate::resolver::lockfile_builder::VariantInputs::default(),
+            files: None,
         };
 
         LockfileBuilder::collect_transitive_children(&lockfile, &parent, &mut entries_to_remove);
@@ -1509,6 +1520,7 @@ test-repo = "https://example.com/repo.git"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: VariantInputs::new(json!({"lang": "rust"})),
+            files: None,
         };
 
         // Create transitive dependency with template_vars = {lang: "python"}
@@ -1529,6 +1541,7 @@ test-repo = "https://example.com/repo.git"
             applied_patches: std::collections::BTreeMap::new(),
             install: None,
             variant_inputs: VariantInputs::new(json!({"lang": "python"})),
+            files: None,
         };
 
         // According to the CRITICAL note in the code:

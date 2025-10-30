@@ -99,6 +99,20 @@ postgres-oc = { source = "company", path = "mcp/postgres.json", version = "v3.0.
 # Experimental MCP server tracking latest
 ai-bridge = { source = "experimental", path = "mcp/ai-bridge.json", version = "latest" }
 
+# ===== SKILLS WITH COMPLEX CONFIGURATIONS =====
+
+[skills]
+# Skills with transitive dependencies and custom targets
+fullstack-helper = { source = "company", path = "skills/fullstack-helper", version = "^2.0.0" }
+debugger-suite = { source = "experimental", path = "skills/debugging/*", version = "v1.5.0" }
+
+# Skills for different tools with different configurations
+rust-expert-cc = { source = "community", path = "skills/rust-expert", version = "v3.0.0" }
+rust-expert-oc = { source = "community", path = "skills/rust-expert", version = "v3.0.0", tool = "opencode" }
+
+# Local skill with custom installation path
+custom-workflow = { path = "../shared/skills/workflow", target = ".claude/sills/company-workflow" }
+
 # ===== ADVANCED PATCHES =====
 
 [patch.agents.app-controller]

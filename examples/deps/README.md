@@ -59,6 +59,82 @@ agpm.templating: true
 
 ## Example Resources
 
+### Claude Code Skills
+
+These skills demonstrate various use cases for Claude Code's skill system. Skills are directories containing a `SKILL.md` file with YAML frontmatter and markdown instructions.
+
+#### Available Skills
+
+- **commit-message-generator** - Generates conventional commit messages based on git diff analysis
+  - **Features**:
+    - Follows conventional commit format (feat, fix, docs, etc.)
+    - Handles breaking changes and issue references
+    - Includes scope and detailed descriptions
+  - **Resources**:
+    - `scripts/commit-analyzer.py` - Automated commit message analysis tool
+    - `templates/commit-template.md` - Commit message template with guidelines
+    - `examples.md` - Detailed examples for different scenarios
+
+- **code-reviewer** - Performs comprehensive code reviews
+  - **Features**:
+    - Checks correctness, performance, security, and maintainability
+    - Provides structured feedback format
+    - Includes review checklist and best practices
+  - **Resources**:
+    - `scripts/review-analyzer.py` - Automated code review analysis tool
+    - `templates/review-template.md` - Structured review template
+    - `examples.md` - Review examples and integration guides
+
+- **csv-data-auditor** - Validates and audits CSV data quality
+  - **Features**:
+    - Checks for missing values, duplicates, and outliers
+    - Validates data types and consistency
+    - Generates detailed audit reports with recommendations
+  - **Resources**:
+    - `scripts/csv_validator.py` - Comprehensive CSV validation tool
+    - `templates/validation-rules.json` - Business rules template
+    - `examples.md` - Validation scenarios and batch processing examples
+
+- **pdf-processor** - Processes PDF files for various tasks
+  - **Features**:
+    - Text extraction with multiple methods
+    - Form filling and field detection
+    - Table extraction and OCR support
+    - PDF manipulation (merge, split, watermark)
+  - **Resources**:
+    - `scripts/pdf_extractor.py` - Full-featured PDF processing tool
+    - `templates/form-data-template.json` - Form field templates
+    - `examples.md` - Comprehensive usage examples for different scenarios
+
+#### Skill Structure
+
+Each skill follows the Claude Code Skills directory structure:
+```
+skill-name/
+├── SKILL.md                 # Main skill definition (required)
+├── scripts/                 # Executable scripts and utilities
+│   ├── *.py                # Python tools
+│   ├── *.js                # JavaScript utilities
+│   └── *.sh                # Shell scripts
+├── templates/               # Template files and configurations
+│   ├── *.md                # Markdown templates
+│   ├── *.json              # Configuration templates
+│   └── *.txt               # Text templates
+└── examples.md              # Detailed usage examples
+```
+
+#### Using Skills
+
+Skills are automatically available in Claude Code when placed in:
+- Project skills: `.claude/skills/` (shared via git)
+- Personal skills: `~/.claude/skills/` (local only)
+
+Each skill contains:
+- **SKILL.md**: Main instructions for Claude to follow
+- **Scripts**: Automated tools for common tasks
+- **Templates**: Reusable configurations and formats
+- **Examples**: Detailed usage scenarios and code samples
+
 ### Agents with Content Embedding
 
 - **code-reviewer-with-standards.md** - Demonstrates dependency content embedding with multiple snippets for coding standards and best practices

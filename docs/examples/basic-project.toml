@@ -34,3 +34,7 @@ pre-commit = { source = "community", path = "hooks/pre-commit.json", version = "
 [mcp-servers]
 # MCP server using latest stable version
 filesystem = { source = "community", path = "mcp/filesystem.json", version = "latest" }
+
+[skills]
+# Skill directory with SKILL.md and supporting files
+rust-helper = { source = "community", path = "skills/rust-helper", version = "v1.0.0" }
