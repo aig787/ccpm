@@ -573,12 +573,19 @@ pub async fn cleanup_gitignore(
 
     // If the file would be empty, delete it
     if new_content.is_empty() {
-        tokio::fs::remove_file(&gitignore_path)
-            .await
-            .with_context(|| "Failed to remove .gitignore file")
-            .with_context(|| {
-                format!("Failed to remove {}", sanitize_path_for_error(&gitignore_path))
-            })?;
+        match tokio::fs::remove_file(&gitignore_path).await {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // File already deleted (race condition), nothing to do
+            }
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| "Failed to remove .gitignore file")
+                    .with_context(|| {
+                        format!("Failed to remove {}", sanitize_path_for_error(&gitignore_path))
+                    });
+            }
+        }
         return Ok(());
     }
 

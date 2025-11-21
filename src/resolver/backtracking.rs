@@ -686,15 +686,48 @@ impl<'a> BacktrackingResolver<'a> {
 
     /// Select the target SHA that other versions should match.
     ///
-    /// Strategy: Choose the SHA with the most requirements, breaking ties by
-    /// preferring more recent versions.
+    /// Strategy: Choose the SHA with the most requirements, breaking ties by:
+    /// 1. Preferring Version resolution mode over GitRef (semver tags are more stable)
+    /// 2. Alphabetically by SHA for deterministic ordering
     fn select_target_sha<'b>(
         &self,
         sha_groups: &'b HashMap<&str, Vec<&ConflictingRequirement>>,
     ) -> Result<&'b str> {
         sha_groups
             .iter()
-            .max_by_key(|(_, reqs)| reqs.len())
+            .max_by(|(sha_a, reqs_a), (sha_b, reqs_b)| {
+                // Primary: number of requirements (more is better)
+                let count_cmp = reqs_a.len().cmp(&reqs_b.len());
+                if count_cmp != std::cmp::Ordering::Equal {
+                    return count_cmp;
+                }
+
+                // Secondary: prefer Version mode over GitRef (semver is more stable)
+                // Count how many requirements use Version mode
+                let version_count_a = reqs_a
+                    .iter()
+                    .filter(|r| {
+                        // Check if requirement looks like a semver constraint
+                        crate::version::constraints::VersionConstraint::parse(&r.requirement)
+                            .is_ok()
+                    })
+                    .count();
+                let version_count_b = reqs_b
+                    .iter()
+                    .filter(|r| {
+                        crate::version::constraints::VersionConstraint::parse(&r.requirement)
+                            .is_ok()
+                    })
+                    .count();
+
+                let mode_cmp = version_count_a.cmp(&version_count_b);
+                if mode_cmp != std::cmp::Ordering::Equal {
+                    return mode_cmp;
+                }
+
+                // Tertiary: alphabetically by SHA for deterministic ordering
+                sha_a.cmp(sha_b)
+            })
             .map(|(sha, _)| *sha)
             .ok_or_else(|| anyhow::anyhow!("No SHA groups found"))
     }
